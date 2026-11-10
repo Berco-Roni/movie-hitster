@@ -86,7 +86,6 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
 .check-list td{padding:.4rem .5rem; border-top:1px solid var(--line); vertical-align:top}
 .check-list .st{font-weight:700; white-space:nowrap}
 .st.ok{color:var(--ok)} .st.bad{color:var(--velvet)}
-#ck{position:absolute; width:320px; height:180px; left:-9999px; top:0}
 
 /* Cards */
 .setup{background:var(--surface); border-radius:14px; padding:1rem 1.25rem; margin:1rem 0}
@@ -111,12 +110,42 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
   main{padding:0; max-width:none}
   .sheet{margin:0; break-after:page}
 }
+
+/* Manage */
+.panel{background:var(--surface); border-radius:14px; padding:1rem 1.25rem; margin:1rem 0}
+.panel h3{margin:.1rem 0 .75rem; font-size:1.25rem}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:.75rem}
+.field label{display:block; font-weight:600; font-size:.95rem; margin-bottom:.2rem}
+[hidden]{display:none!important}
+.field input,.field select,.filter{box-sizing:border-box; width:100%; padding:.55rem .7rem; border-radius:8px; border:2px solid var(--line); background:var(--paper); color:var(--ink)}
+.field.wide{grid-column:1/-1}
+.hint{color:var(--muted); font-size:.95rem; margin:.3rem 0 0}
+.pv{position:relative; aspect-ratio:16/9; max-width:30rem; background:#000; border-radius:10px; overflow:hidden; margin:.75rem 0}
+.pv iframe{position:absolute; inset:0; width:100%; height:100%}
+.status{font-weight:600; min-height:1.5em; margin:.5rem 0 0}
+.status.bad{color:var(--velvet)} .status.ok{color:var(--ok)}
+.dirty{display:none; background:var(--bulb); color:#2B1216; border-radius:12px; padding:.75rem 1rem; margin:1rem 0; font-weight:600}
+.dirty.on{display:flex; flex-wrap:wrap; gap:.75rem; align-items:center}
+.dirty .btn.ghost{color:#2B1216; box-shadow:inset 0 0 0 2px #2B1216}
+.mini{border:0; background:transparent; color:var(--ink); font-weight:700; cursor:pointer; padding:.2rem .35rem; text-decoration:underline}
+.mini.del{color:var(--velvet)}
+.tablewrap{overflow-x:auto}
+.check-list{width:100%; border-collapse:collapse; margin-top:.75rem}
+.check-list th{text-align:left; font-size:.95rem; color:var(--muted); padding:.3rem .5rem}
+.check-list td{padding:.4rem .5rem; border-top:1px solid var(--line); vertical-align:top}
+.check-list .st{font-weight:700; white-space:nowrap}
+.st.ok{color:var(--ok)} .st.bad{color:var(--velvet)}
+.check-list .acts{white-space:nowrap}
+#ck{position:absolute; width:320px; height:180px; left:-9999px; top:0}
+details summary{cursor:pointer; font-weight:700}
+.range{display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem}
+.range .field{width:8rem}
 </style>
 </head>
 <body>
 <header class="bar">
   <a href="#" class="logo">Movie Hitster</a>
-  <nav><a href="#check">Check clips</a><a href="#cards">Print cards</a></nav>
+  <nav><a href="#manage">Manage deck</a><a href="#cards">Print cards</a></nav>
 </header>
 
 <main>
@@ -128,6 +157,7 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
         <button class="btn" data-random>Draw a random card</button>
         <a class="btn ghost" href="#cards">Print the cards</a>
       </div>
+      <p class="hint" id="deckInfo"></p>
     </div>
     <h2>How to play</h2>
     <ol class="rules">
@@ -153,7 +183,7 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
       </div>
     </div>
     <p class="tap-hint">Tap the video to start it.</p>
-    <div class="row">
+    <div class="row" id="playControls">
       <button class="btn" id="playBtn">Play scene</button>
       <button class="btn ghost" id="replayBtn">Replay</button>
       <button class="btn ghost" id="revealBtn">Reveal answer</button>
@@ -163,13 +193,67 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
     <p class="row" style="margin-top:1.5rem"><button class="btn ghost" data-random>Draw another card</button></p>
   </section>
 
-  <section id="check" class="view">
-    <h2>Check clips</h2>
-    <p>Plays each clip for a moment, muted, to find the ones that won’t play on this device. This list shows the answers, so keep it away from the players.</p>
-    <button class="btn" id="checkBtn">Check all clips</button>
-    <span id="checkSum" style="margin-left:.75rem; font-weight:600"></span>
+  <section id="manage" class="view">
+    <h2>Manage deck</h2>
+    <p class="hint">This page shows the answers, so keep it away from the players.</p>
+
+    <div class="dirty" id="dirtyBar">
+      <span id="dirtyText">You have changes that aren’t on the site yet.</span>
+      <button class="btn" id="saveGhBtn">Save to GitHub</button>
+      <button class="btn ghost" id="downloadBtn">Download deck.json</button>
+      <button class="btn ghost" id="discardBtn">Discard changes</button>
+    </div>
+    <p class="status" id="saveStatus"></p>
+
+    <div class="panel" id="addPanel">
+      <h3 id="formTitle">Add a clip</h3>
+      <div class="grid">
+        <div class="field wide">
+          <label for="fLink">YouTube link</label>
+          <input id="fLink" type="text" placeholder="https://www.youtube.com/watch?v=…" spellcheck="false">
+          <p class="hint">Paste a link and the title and year are filled in from the video’s name. Check them, then add the characters.</p>
+        </div>
+      </div>
+      <p class="status" id="addStatus"></p>
+      <div class="pv" id="pvWrap" hidden><div id="pv"></div></div>
+      <div class="grid">
+        <div class="field"><label for="fStart">Start (seconds)</label><input id="fStart" type="number" min="0" value="0"></div>
+        <div class="field"><label for="fLen">Length (seconds)</label><input id="fLen" type="number" min="5" value="40"></div>
+        <div class="field" style="align-self:end"><button class="btn ghost" id="setStartBtn" type="button">Start from here</button></div>
+      </div>
+      <p class="hint">To pick the start, play the preview, pause where the scene should begin, and click <strong>Start from here</strong>.</p>
+      <div class="grid" style="margin-top:.75rem">
+        <div class="field wide"><label for="fTitle">Movie or show title</label><input id="fTitle" type="text"></div>
+        <div class="field"><label for="fYear">Year</label><input id="fYear" type="number" min="1900" max="2100"></div>
+        <div class="field"><label for="fKind">Type</label><select id="fKind"><option value="movie">Movie</option><option value="tv">TV show</option></select></div>
+        <div class="field wide"><label for="fChars">Characters in the scene</label><input id="fChars" type="text" placeholder="For example: Ross, Rachel, Chandler"></div>
+      </div>
+      <p class="hint">For a TV show, use the year that episode aired.</p>
+      <div class="row" style="margin-top:.75rem">
+        <button class="btn" id="addBtn">Add card</button>
+        <button class="btn ghost" id="cancelEditBtn" hidden>Cancel</button>
+      </div>
+    </div>
+
+    <details class="panel" id="ghPanel">
+      <summary>GitHub settings (needed to save from this page)</summary>
+      <div class="grid" style="margin-top:.75rem">
+        <div class="field"><label for="gOwner">GitHub username</label><input id="gOwner" type="text" spellcheck="false"></div>
+        <div class="field"><label for="gRepo">Repository</label><input id="gRepo" type="text" spellcheck="false"></div>
+        <div class="field"><label for="gBranch">Branch</label><input id="gBranch" type="text" value="main" spellcheck="false"></div>
+        <div class="field wide"><label for="gToken">Access token</label><input id="gToken" type="password" spellcheck="false" autocomplete="off"></div>
+      </div>
+      <p class="hint">Create the token on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Under Repository access choose only this repository, and under Permissions set Contents to Read and write. The token is kept only in this browser, never on the site.</p>
+      <button class="btn ghost" id="saveSettingsBtn" style="margin-top:.5rem">Remember on this device</button>
+    </details>
+
+    <div class="row" style="margin-top:1.5rem">
+      <button class="btn" id="checkBtn">Check all clips</button>
+      <span id="checkSum" style="font-weight:600"></span>
+    </div>
+    <input class="filter" id="filter" type="text" placeholder="Filter by title or character" style="margin-top:1rem">
     <div id="ck"></div>
-    <table class="check-list" id="checkList"></table>
+    <div class="tablewrap"><table class="check-list" id="checkList"></table></div>
   </section>
 
   <section id="cards" class="view">
@@ -178,7 +262,11 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
       <label for="base">Web address the QR codes open</label>
       <input id="base" type="text" spellcheck="false">
       <p id="baseWarn" class="warn" hidden>This page is open from a file on your computer, so phones can’t reach it. Host it first, then print from the hosted address.</p>
-      <p>Print double-sided, flip on the long edge, at 100% scale. Each page of fronts is followed by its backs.</p>
+      <div class="range">
+        <div class="field"><label for="pFrom">From card</label><input id="pFrom" type="number" min="1"></div>
+        <div class="field"><label for="pTo">To card</label><input id="pTo" type="number" min="1"></div>
+      </div>
+      <p>To print only new cards, set the range to their numbers. Print double-sided, flip on the long edge, at 100% scale.</p>
       <button class="btn" onclick="print()">Print cards</button>
     </div>
     <div class="sheets" id="sheets"></div>
@@ -186,338 +274,65 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
 </main>
 
 <script>
-/* ---------- Deck: 300 cards ----------
-   kind: "movie" or "tv". For TV, year = the year that episode aired.
-   chars = characters in the scene (the bonus answer).
-   yt = YouTube video ID, start = second the scene starts, len = seconds to play.
-   Card numbers are shuffled so they give no hint about the year. */
-const DECK = [
-  {"id": "001", "kind": "movie", "title": "The Good, the Bad and the Ugly", "year": 1966, "chars": "Blondie, Tuco, Angel Eyes", "yt": "5PgAKzmWmuk", "start":2, "len":40},
-  {"id": "002", "kind": "movie", "title": "Kung Fu Panda", "year": 2008, "chars": "Po, Master Shifu", "yt": "zvY-EPgYB4Y", "start":2, "len":40},
-  {"id": "003", "kind": "movie", "title": "Barbie", "year": 2023, "chars": "Barbie, Ken", "yt": "ucglA9Vv_Ys", "start":2, "len":40},
-  {"id": "004", "kind": "movie", "title": "The Hangover", "year": 2009, "chars": "Alan, Phil, Stu", "yt": "DdNfSuTpDbA", "start":2, "len":40},
-  {"id": "005", "kind": "movie", "title": "Titanic", "year": 1997, "chars": "Jack Dawson", "yt": "UE5KcYjO5d8", "start":2, "len":40},
-  {"id": "006", "kind": "movie", "title": "Goldfinger", "year": 1964, "chars": "James Bond, Auric Goldfinger", "yt": "wzwPI1zJ9K0", "start":2, "len":40},
-  {"id": "007", "kind": "movie", "title": "Batman Begins", "year": 2005, "chars": "Bruce Wayne, Ra’s al Ghul", "yt": "LX32DQX0CpQ", "start":2, "len":40},
-  {"id": "008", "kind": "movie", "title": "Breakfast at Tiffany’s", "year": 1961, "chars": "Holly Golightly", "yt": "uirBWk-qd9A", "start":2, "len":40},
-  {"id": "009", "kind": "movie", "title": "Raiders of the Lost Ark", "year": 1981, "chars": "Indiana Jones", "yt": "c6XHLe94SJA", "start":2, "len":40},
-  {"id": "010", "kind": "tv", "title": "The O.C.", "year": 2003, "chars": "Ryan Atwood, Seth Cohen, Luke Ward", "yt": "6lgK4ldR2Xo", "start":2, "len":40},
-  {"id": "011", "kind": "movie", "title": "Star Wars: The Force Awakens", "year": 2015, "chars": "Han Solo, Chewbacca, Rey, Finn", "yt": "6s2SYbSFGMs", "start":2, "len":40},
-  {"id": "012", "kind": "movie", "title": "Independence Day", "year": 1996, "chars": "President Whitmore", "yt": "9t1IK_9apWs", "start":2, "len":40},
-  {"id": "013", "kind": "tv", "title": "Game of Thrones", "year": 2014, "chars": "Tyrion Lannister", "yt": "uvX4k_3Cmvs", "start":2, "len":40},
-  {"id": "014", "kind": "tv", "title": "Ted Lasso", "year": 2020, "chars": "Ted Lasso, Rupert Mannion", "yt": "3S16b-x5mRA", "start":2, "len":40},
-  {"id": "015", "kind": "movie", "title": "Deadpool & Wolverine", "year": 2024, "chars": "Deadpool, Wolverine", "yt": "3uwrL9unVek", "start":2, "len":40},
-  {"id": "016", "kind": "movie", "title": "High School Musical", "year": 2006, "chars": "Troy Bolton, Gabriella Montez", "yt": "0qj67KE5VXI", "start":2, "len":40},
-  {"id": "017", "kind": "movie", "title": "Superman", "year": 1978, "chars": "Superman, Lois Lane", "yt": "bfKu5Jc8TjA", "start":2, "len":40},
-  {"id": "018", "kind": "movie", "title": "The Hunger Games: Catching Fire", "year": 2013, "chars": "Katniss Everdeen, Cinna", "yt": "LBKjVzYQBwI", "start":2, "len":40},
-  {"id": "019", "kind": "movie", "title": "Indiana Jones and the Last Crusade", "year": 1989, "chars": "Indiana Jones, Henry Jones", "yt": "VA7J0KkanzM", "start":2, "len":40},
-  {"id": "020", "kind": "movie", "title": "Frozen", "year": 2013, "chars": "Elsa", "yt": "moSFlvxnbgk", "start":2, "len":40},
-  {"id": "021", "kind": "movie", "title": "Big Hero 6", "year": 2014, "chars": "Baymax, Hiro, Tadashi", "yt": "jbKSvOfqxF0", "start":2, "len":40},
-  {"id": "022", "kind": "movie", "title": "Back to the Future", "year": 1985, "chars": "Marty McFly, Doc Brown", "yt": "FWG3Dfss3Jc", "start":2, "len":40},
-  {"id": "023", "kind": "movie", "title": "Tangled", "year": 2010, "chars": "Rapunzel, Flynn Rider", "yt": "0UU2dKt1L08", "start":2, "len":40},
-  {"id": "024", "kind": "movie", "title": "Pirates of the Caribbean: The Curse of the Black Pearl", "year": 2003, "chars": "Jack Sparrow", "yt": "dvdrCPr3gDQ", "start":2, "len":40},
-  {"id": "025", "kind": "movie", "title": "Scream", "year": 1996, "chars": "Casey Becker, Ghostface", "yt": "gtIJ1e_UHZg", "start":2, "len":40},
-  {"id": "026", "kind": "movie", "title": "Elf", "year": 2003, "chars": "Buddy", "yt": "HebbNljYRzE", "start":2, "len":40},
-  {"id": "027", "kind": "tv", "title": "How I Met Your Mother", "year": 2007, "chars": "Marshall, Barney Stinson", "yt": "_6xBwQ2PV7I", "start":2, "len":40},
-  {"id": "028", "kind": "movie", "title": "Up", "year": 2009, "chars": "Dug, Carl, Russell", "yt": "hdLV_L0RlNo", "start":2, "len":40},
-  {"id": "029", "kind": "movie", "title": "Wicked", "year": 2024, "chars": "Elphaba, Glinda", "yt": "MOuiaMyPE80", "start":2, "len":40},
-  {"id": "030", "kind": "movie", "title": "The Goonies", "year": 1985, "chars": "Chunk, Mikey, Data", "yt": "kr_z37TgQO4", "start":2, "len":40},
-  {"id": "031", "kind": "movie", "title": "Ocean’s Eleven", "year": 2001, "chars": "Rusty Ryan, Danny Ocean", "yt": "m6ux3-Z03B4", "start":2, "len":40},
-  {"id": "032", "kind": "movie", "title": "Willy Wonka & the Chocolate Factory", "year": 1971, "chars": "Willy Wonka", "yt": "LIYNk4ARUR8", "start":2, "len":40},
-  {"id": "033", "kind": "movie", "title": "Ghostbusters", "year": 1984, "chars": "Peter Venkman, Ray Stantz, Egon Spengler", "yt": "g01em4WGO7A", "start":2, "len":40},
-  {"id": "034", "kind": "tv", "title": "Seinfeld", "year": 1995, "chars": "Jerry, Elaine, the Soup Nazi", "yt": "RqlQYBcsq54", "start":2, "len":40},
-  {"id": "035", "kind": "tv", "title": "Friends", "year": 1999, "chars": "Ross, Rachel, Chandler", "yt": "njgfomF51fg", "start":2, "len":40},
-  {"id": "036", "kind": "tv", "title": "Black Mirror", "year": 2016, "chars": "Lacie Pound", "yt": "3hhJ2kac6Xc", "start":2, "len":40},
-  {"id": "037", "kind": "movie", "title": "Harry Potter and the Order of the Phoenix", "year": 2007, "chars": "Dumbledore, Voldemort", "yt": "SBWkAHAjXWo", "start":2, "len":40},
-  {"id": "038", "kind": "tv", "title": "Sherlock", "year": 2010, "chars": "Sherlock Holmes, the cabbie", "yt": "huOwYyK5EHk", "start":2, "len":40},
-  {"id": "039", "kind": "tv", "title": "Hannah Montana", "year": 2006, "chars": "Miley Stewart, Lilly Truscott", "yt": "6kxP1xy8QWI", "start":2, "len":40},
-  {"id": "040", "kind": "movie", "title": "Shrek", "year": 2001, "chars": "Shrek, Donkey", "yt": "yxoCN7TkmEo", "start":2, "len":40},
-  {"id": "041", "kind": "movie", "title": "The Super Mario Bros. Movie", "year": 2023, "chars": "Bowser", "yt": "V-IMIBnmuKw", "start":2, "len":40},
-  {"id": "042", "kind": "movie", "title": "Freaky Friday", "year": 2003, "chars": "Anna Coleman, Tess Coleman", "yt": "B0i4RlqrZFA", "start":2, "len":40},
-  {"id": "043", "kind": "movie", "title": "Toy Story 2", "year": 1999, "chars": "Buzz Lightyear, Zurg", "yt": "wRxY7KzkoGg", "start":2, "len":40},
-  {"id": "044", "kind": "tv", "title": "Community", "year": 2010, "chars": "Jeff Winger, Annie Edison", "yt": "XcOG5iZpV-k", "start":2, "len":40},
-  {"id": "045", "kind": "movie", "title": "Scarface", "year": 1983, "chars": "Tony Montana", "yt": "9m_12SGXNKw", "start":2, "len":40},
-  {"id": "046", "kind": "movie", "title": "Rocky", "year": 1976, "chars": "Rocky Balboa", "yt": "_YYmfM2TfUA", "start":2, "len":40},
-  {"id": "047", "kind": "movie", "title": "The Wolf of Wall Street", "year": 2013, "chars": "Jordan Belfort", "yt": "Ee8UQhRPeeg", "start":2, "len":40},
-  {"id": "048", "kind": "movie", "title": "Little Miss Sunshine", "year": 2006, "chars": "Olive Hoover", "yt": "ECfvSmDe_-0", "start":2, "len":40},
-  {"id": "049", "kind": "tv", "title": "Breaking Bad", "year": 2011, "chars": "Walter White, Skyler White", "yt": "Ca3kPemW2CE", "start":2, "len":40},
-  {"id": "050", "kind": "movie", "title": "The Sound of Music", "year": 1965, "chars": "Maria", "yt": "pLm07s8fnzM", "start":2, "len":40},
-  {"id": "051", "kind": "movie", "title": "Zoolander", "year": 2001, "chars": "Derek Zoolander", "yt": "NQ-8IuUkJJc", "start":2, "len":40},
-  {"id": "052", "kind": "movie", "title": "Spider-Man: No Way Home", "year": 2021, "chars": "Peter Parker", "yt": "PQY9YbQhYc0", "start":2, "len":40},
-  {"id": "053", "kind": "movie", "title": "Alien", "year": 1979, "chars": "Ripley", "yt": "Mzj1eQ76ejA", "start":2, "len":40},
-  {"id": "054", "kind": "movie", "title": "The Hunger Games", "year": 2012, "chars": "Katniss Everdeen, Effie Trinket", "yt": "ZQJweTp7LZo", "start":2, "len":40},
-  {"id": "055", "kind": "movie", "title": "Monsters, Inc.", "year": 2001, "chars": "Sulley, Mike Wazowski, Boo", "yt": "QpaOtyjWkBo", "start":2, "len":40},
-  {"id": "056", "kind": "tv", "title": "The Bear", "year": 2022, "chars": "Carmy, Richie, Sydney", "yt": "K8yHuQVZrXU", "start":2, "len":40},
-  {"id": "057", "kind": "movie", "title": "The Princess Bride", "year": 1987, "chars": "Inigo Montoya, Count Rugen", "yt": "I73sP93-0xA", "start":2, "len":40},
-  {"id": "058", "kind": "movie", "title": "Back to the Future Part II", "year": 1989, "chars": "Marty McFly", "yt": "TkyLnWm1iCs", "start":2, "len":40},
-  {"id": "059", "kind": "movie", "title": "The Little Mermaid", "year": 1989, "chars": "Sebastian, Ariel", "yt": "GC_mV1IpjWA", "start":2, "len":40},
-  {"id": "060", "kind": "tv", "title": "Game of Thrones", "year": 2016, "chars": "Hodor, Bran", "yt": "_7aYh2gpJC4", "start":2, "len":40},
-  {"id": "061", "kind": "movie", "title": "Braveheart", "year": 1995, "chars": "William Wallace", "yt": "ZY6PK3IFVbM", "start":2, "len":40},
-  {"id": "062", "kind": "movie", "title": "Mulan", "year": 1998, "chars": "Mulan, Shang", "yt": "vGfJeW_CcFY", "start":2, "len":40},
-  {"id": "063", "kind": "movie", "title": "Pretty Woman", "year": 1990, "chars": "Vivian Ward", "yt": "HyQPUuGVXwM", "start":2, "len":40},
-  {"id": "064", "kind": "movie", "title": "13 Going on 30", "year": 2004, "chars": "Jenna Rink", "yt": "hrQlEnUYuB4", "start":2, "len":40},
-  {"id": "065", "kind": "movie", "title": "Dirty Dancing", "year": 1987, "chars": "Baby, Johnny Castle", "yt": "XINddkzfTzM", "start":2, "len":40},
-  {"id": "066", "kind": "movie", "title": "Jerry Maguire", "year": 1996, "chars": "Jerry Maguire, Rod Tidwell", "yt": "FFrag8ll85w", "start":2, "len":40},
-  {"id": "067", "kind": "movie", "title": "Coco", "year": 2017, "chars": "Miguel, Mamá Coco", "yt": "xYUw8ESMXoc", "start":2, "len":40},
-  {"id": "068", "kind": "movie", "title": "Avatar", "year": 2009, "chars": "Jake Sully, Neytiri", "yt": "66vMsZYVvYY", "start":2, "len":40},
-  {"id": "069", "kind": "tv", "title": "The Office", "year": 2008, "chars": "Michael Scott, Jan Levinson", "yt": "SEdnETjxd1k", "start":2, "len":40},
-  {"id": "070", "kind": "movie", "title": "Avengers: Infinity War", "year": 2018, "chars": "Thor, Thanos", "yt": "h37RpdyFUFM", "start":2, "len":40},
-  {"id": "071", "kind": "tv", "title": "The Mandalorian", "year": 2019, "chars": "The Mandalorian, Grogu", "yt": "3e8a5NqygFk", "start":2, "len":40},
-  {"id": "072", "kind": "movie", "title": "Parasite", "year": 2019, "chars": "Ki-jung (“Jessica”)", "yt": "SQ2yblOD-EQ", "start":2, "len":40},
-  {"id": "073", "kind": "movie", "title": "Encanto", "year": 2021, "chars": "the Madrigal family, Bruno", "yt": "QmIlNInNPzQ", "start":2, "len":40},
-  {"id": "074", "kind": "tv", "title": "The X-Files", "year": 1993, "chars": "Fox Mulder, Dana Scully", "yt": "KomquOrtcCc", "start":2, "len":40},
-  {"id": "075", "kind": "movie", "title": "Pirates of the Caribbean: Dead Man’s Chest", "year": 2006, "chars": "Jack Sparrow, Davy Jones", "yt": "ZDw2cCTpzHQ", "start":2, "len":40},
-  {"id": "076", "kind": "movie", "title": "2001: A Space Odyssey", "year": 1968, "chars": "Dave Bowman, HAL 9000", "yt": "V0bUd6KrQGg", "start":2, "len":40},
-  {"id": "077", "kind": "movie", "title": "Shrek 2", "year": 2004, "chars": "Shrek, Puss in Boots, Donkey", "yt": "vaJ2yQC_ktY", "start":2, "len":40},
-  {"id": "078", "kind": "movie", "title": "Frozen II", "year": 2019, "chars": "Elsa", "yt": "gIOyB9ZXn8s", "start":2, "len":40},
-  {"id": "079", "kind": "movie", "title": "Cars", "year": 2006, "chars": "Lightning McQueen, Mater", "yt": "HF0s-pXOHck", "start":2, "len":40},
-  {"id": "080", "kind": "tv", "title": "The Witcher", "year": 2019, "chars": "Jaskier, Geralt", "yt": "PoQJM8SO6V0", "start":2, "len":40},
-  {"id": "081", "kind": "movie", "title": "Star Wars", "year": 1977, "chars": "Luke Skywalker, Obi-Wan Kenobi", "yt": "DNwotUOzA4U", "start":2, "len":40},
-  {"id": "082", "kind": "movie", "title": "Stand by Me", "year": 1986, "chars": "Gordie, Chris, Teddy, Vern", "yt": "gozRrRCtj6E", "start":2, "len":40},
-  {"id": "083", "kind": "movie", "title": "Matilda", "year": 1996, "chars": "Matilda, Miss Trunchbull, Bruce", "yt": "EOQeU_6vbeg", "start":2, "len":40},
-  {"id": "084", "kind": "movie", "title": "John Wick", "year": 2014, "chars": "John Wick", "yt": "tM47HMT8GGE", "start":2, "len":40},
-  {"id": "085", "kind": "tv", "title": "Bridgerton", "year": 2022, "chars": "Anthony Bridgerton, Kate Sharma", "yt": "JBiPGfAo1WU", "start":2, "len":40},
-  {"id": "086", "kind": "movie", "title": "The Avengers", "year": 2012, "chars": "Hulk, Loki", "yt": "31ZjnrHR8EA", "start":2, "len":40},
-  {"id": "087", "kind": "tv", "title": "Parks and Recreation", "year": 2011, "chars": "Tom Haverford, Donna Meagle", "yt": "gSjM5B3QNlw", "start":2, "len":40},
-  {"id": "088", "kind": "tv", "title": "Stranger Things", "year": 2022, "chars": "Max Mayfield", "yt": "bV0RAcuG2Ao", "start":2, "len":40},
-  {"id": "089", "kind": "movie", "title": "The Lord of the Rings: The Return of the King", "year": 2003, "chars": "Aragorn", "yt": "ApUu1DA5HCs", "start":2, "len":40},
-  {"id": "090", "kind": "movie", "title": "Dr. No", "year": 1962, "chars": "James Bond", "yt": "b15-P12gIf0", "start":2, "len":40},
-  {"id": "091", "kind": "movie", "title": "Deadpool", "year": 2016, "chars": "Deadpool, Francis", "yt": "8Oe7sMnKkW4", "start":2, "len":40},
-  {"id": "092", "kind": "movie", "title": "Casino Royale", "year": 2006, "chars": "James Bond, Vesper Lynd", "yt": "xuyoqS31Yug", "start":2, "len":40},
-  {"id": "093", "kind": "movie", "title": "Dumb and Dumber", "year": 1994, "chars": "Lloyd Christmas, Mary", "yt": "-9IgLueodZA", "start":2, "len":40},
-  {"id": "094", "kind": "movie", "title": "Edward Scissorhands", "year": 1990, "chars": "Edward, Kim", "yt": "-Yxx97v5IC8", "start":2, "len":40},
-  {"id": "095", "kind": "movie", "title": "Aliens", "year": 1986, "chars": "Ripley", "yt": "Dunj62GVafg", "start":2, "len":40},
-  {"id": "096", "kind": "movie", "title": "Ferris Bueller’s Day Off", "year": 1986, "chars": "Ferris Bueller", "yt": "7VhlSmPNsDA", "start":2, "len":40},
-  {"id": "097", "kind": "movie", "title": "The Silence of the Lambs", "year": 1991, "chars": "Hannibal Lecter, Clarice Starling", "yt": "EnMV60UDuF0", "start":2, "len":40},
-  {"id": "098", "kind": "movie", "title": "The Martian", "year": 2015, "chars": "Mark Watney", "yt": "eZvQlohEUHY", "start":2, "len":40},
-  {"id": "099", "kind": "movie", "title": "Kill Bill: Volume 1", "year": 2003, "chars": "The Bride, O-Ren Ishii", "yt": "EajaioMj-NA", "start":2, "len":40},
-  {"id": "100", "kind": "movie", "title": "The Notebook", "year": 2004, "chars": "Noah, Allie", "yt": "XszIigIa2Bg", "start":2, "len":40},
-  {"id": "101", "kind": "tv", "title": "Euphoria", "year": 2022, "chars": "Lexi Howard, Cassie Howard", "yt": "5hLiIFBUVAM", "start":2, "len":40},
-  {"id": "102", "kind": "tv", "title": "The Fresh Prince of Bel-Air", "year": 1994, "chars": "Will, Uncle Phil", "yt": "EZGXCDJATDs", "start":2, "len":40},
-  {"id": "103", "kind": "movie", "title": "Star Wars: Episode I – The Phantom Menace", "year": 1999, "chars": "Darth Maul, Qui-Gon Jinn, Obi-Wan Kenobi", "yt": "DYFIHUJTjMU", "start":2, "len":40},
-  {"id": "104", "kind": "movie", "title": "Mission: Impossible", "year": 1996, "chars": "Ethan Hunt", "yt": "k-oVuQpjG3s", "start":2, "len":40},
-  {"id": "105", "kind": "movie", "title": "Bridesmaids", "year": 2011, "chars": "Annie, Megan", "yt": "s9prJba2vkw", "start":2, "len":40},
-  {"id": "106", "kind": "movie", "title": "Love Actually", "year": 2003, "chars": "Mark, Juliet", "yt": "DWxiq949BQE", "start":2, "len":40},
-  {"id": "107", "kind": "movie", "title": "The Graduate", "year": 1967, "chars": "Benjamin Braddock, Mrs. Robinson", "yt": "-3lKbMBab18", "start":2, "len":40},
-  {"id": "108", "kind": "movie", "title": "Zootopia", "year": 2016, "chars": "Judy Hopps, Nick Wilde, Flash", "yt": "jVBmK3EI4TA", "start":2, "len":40},
-  {"id": "109", "kind": "movie", "title": "Step Brothers", "year": 2008, "chars": "Brennan, Dale", "yt": "ulwUkaKjgY0", "start":2, "len":40},
-  {"id": "110", "kind": "movie", "title": "Mad Max: Fury Road", "year": 2015, "chars": "Max Rockatansky, Furiosa", "yt": "k4Lpr1sqKbQ", "start":2, "len":40},
-  {"id": "111", "kind": "movie", "title": "Home Alone", "year": 1990, "chars": "Kevin McCallister", "yt": "_qu4ZBCU6Fc", "start":2, "len":40},
-  {"id": "112", "kind": "tv", "title": "Modern Family", "year": 2009, "chars": "Cam, Mitchell", "yt": "SziVCqQtFbM", "start":2, "len":40},
-  {"id": "113", "kind": "movie", "title": "The Shawshank Redemption", "year": 1994, "chars": "Andy Dufresne, Red", "yt": "QU75webb2tA", "start":2, "len":40},
-  {"id": "114", "kind": "tv", "title": "The Queen’s Gambit", "year": 2020, "chars": "Beth Harmon", "yt": "pBKTBAbKU58", "start":2, "len":40},
-  {"id": "115", "kind": "tv", "title": "Peaky Blinders", "year": 2013, "chars": "Tommy Shelby", "yt": "YGj0xgPXTSw", "start":2, "len":40},
-  {"id": "116", "kind": "movie", "title": "Groundhog Day", "year": 1993, "chars": "Phil Connors", "yt": "1jJxzhFg86M", "start":2, "len":40},
-  {"id": "117", "kind": "movie", "title": "Notting Hill", "year": 1999, "chars": "Anna Scott, William Thacker", "yt": "RESwG23_YGw", "start":2, "len":40},
-  {"id": "118", "kind": "movie", "title": "Ice Age", "year": 2002, "chars": "Manny, Sid, Diego", "yt": "lHECiwva8FY", "start":2, "len":40},
-  {"id": "119", "kind": "movie", "title": "Legally Blonde", "year": 2001, "chars": "Elle Woods", "yt": "rLcAQVgMTSY", "start":2, "len":40},
-  {"id": "120", "kind": "tv", "title": "Star Trek", "year": 1967, "chars": "Captain Kirk, Spock", "yt": "nOTvgRqBXPg", "start":2, "len":40},
-  {"id": "121", "kind": "movie", "title": "The Dark Knight", "year": 2008, "chars": "The Joker", "yt": "ppOVLojanC8", "start":2, "len":40},
-  {"id": "122", "kind": "tv", "title": "Fleabag", "year": 2019, "chars": "Fleabag, the Priest", "yt": "68Q9El7b1b8", "start":2, "len":40},
-  {"id": "123", "kind": "movie", "title": "Forrest Gump", "year": 1994, "chars": "Forrest Gump", "yt": "m6rXRAmaQiE", "start":2, "len":40},
-  {"id": "124", "kind": "tv", "title": "The Office", "year": 2005, "chars": "Jim Halpert, Dwight Schrute", "yt": "fcXip3xBtps", "start":2, "len":40},
-  {"id": "125", "kind": "movie", "title": "Inside Out", "year": 2015, "chars": "Joy, Sadness, Bing Bong", "yt": "Nhv-u4VFNSI", "start":2, "len":40},
-  {"id": "126", "kind": "movie", "title": "Toy Story", "year": 1995, "chars": "Woody, Buzz Lightyear", "yt": "rWiyJXywKwc", "start":2, "len":40},
-  {"id": "127", "kind": "movie", "title": "Spider-Man: Across the Spider-Verse", "year": 2023, "chars": "Miles Morales, Gwen Stacy", "yt": "MokxwHbscQ8", "start":2, "len":40},
-  {"id": "128", "kind": "tv", "title": "The Simpsons", "year": 1996, "chars": "Principal Skinner, Superintendent Chalmers", "yt": "qPSLLBIR6v8", "start":2, "len":40},
-  {"id": "129", "kind": "tv", "title": "How I Met Your Mother", "year": 2006, "chars": "Robin Scherbatsky, Barney Stinson", "yt": "uUfGppk-3t4", "start":2, "len":40},
-  {"id": "130", "kind": "movie", "title": "Bohemian Rhapsody", "year": 2018, "chars": "Freddie Mercury", "yt": "E4JydRGplgs", "start":2, "len":40},
-  {"id": "131", "kind": "tv", "title": "Mad Men", "year": 2007, "chars": "Don Draper", "yt": "rq3n2sJ43Hg", "start":2, "len":40},
-  {"id": "132", "kind": "movie", "title": "Gladiator", "year": 2000, "chars": "Maximus", "yt": "HmdpjkM3onk", "start":2, "len":40},
-  {"id": "133", "kind": "tv", "title": "Wednesday", "year": 2022, "chars": "Wednesday Addams", "yt": "NakTu_VZxJ0", "start":2, "len":40},
-  {"id": "134", "kind": "movie", "title": "Ratatouille", "year": 2007, "chars": "Anton Ego, Remy", "yt": "Cxpm-xYSvkU", "start":2, "len":40},
-  {"id": "135", "kind": "movie", "title": "Dune: Part Two", "year": 2024, "chars": "Paul Atreides, Chani", "yt": "igNyLmTc7Po", "start":2, "len":40},
-  {"id": "136", "kind": "movie", "title": "Saturday Night Fever", "year": 1977, "chars": "Tony Manero", "yt": "PmEGfJ6PjuE", "start":2, "len":40},
-  {"id": "137", "kind": "movie", "title": "Spider-Man", "year": 2002, "chars": "Peter Parker, Mary Jane", "yt": "aBpwrORhKWU", "start":2, "len":40},
-  {"id": "138", "kind": "tv", "title": "The Walking Dead", "year": 2010, "chars": "Rick Grimes", "yt": "fRkOQT90UFs", "start":2, "len":40},
-  {"id": "139", "kind": "tv", "title": "Narcos", "year": 2015, "chars": "Pablo Escobar", "yt": "v1xd4tIbTWo", "start":2, "len":40},
-  {"id": "140", "kind": "movie", "title": "Butch Cassidy and the Sundance Kid", "year": 1969, "chars": "Butch Cassidy, Sundance Kid", "yt": "KyR7XB0VBPM", "start":2, "len":40},
-  {"id": "141", "kind": "movie", "title": "Skyfall", "year": 2012, "chars": "James Bond, Silva, M", "yt": "QbQkatHdNu0", "start":2, "len":40},
-  {"id": "142", "kind": "movie", "title": "Twilight", "year": 2008, "chars": "Bella Swan, Edward Cullen", "yt": "TQLrdn3StIg", "start":2, "len":40},
-  {"id": "143", "kind": "movie", "title": "Lilo & Stitch", "year": 2002, "chars": "Lilo, Stitch", "yt": "LJel9q-nDZo", "start":2, "len":40},
-  {"id": "144", "kind": "movie", "title": "Harry Potter and the Prisoner of Azkaban", "year": 2004, "chars": "Hermione, Draco Malfoy, Ron", "yt": "jYiGXxGb_nc", "start":2, "len":40},
-  {"id": "145", "kind": "movie", "title": "When Harry Met Sally", "year": 1989, "chars": "Harry, Sally", "yt": "plWM8QWgfho", "start":2, "len":40},
-  {"id": "146", "kind": "movie", "title": "Mamma Mia!", "year": 2008, "chars": "Donna, Sophie", "yt": "QRoWiTcO7dk", "start":2, "len":40},
-  {"id": "147", "kind": "tv", "title": "Brooklyn Nine-Nine", "year": 2018, "chars": "Jake Peralta, Captain Holt", "yt": "gbCgp1gp1UI", "start":2, "len":40},
-  {"id": "148", "kind": "movie", "title": "Dead Poets Society", "year": 1989, "chars": "John Keating", "yt": "3X81np_9QlE", "start":2, "len":40},
-  {"id": "149", "kind": "movie", "title": "The Jungle Book", "year": 1967, "chars": "Baloo, Mowgli", "yt": "c6e3ITsjLRI", "start":2, "len":40},
-  {"id": "150", "kind": "movie", "title": "The Bourne Identity", "year": 2002, "chars": "Jason Bourne", "yt": "tqsUt9n13Gg", "start":2, "len":40},
-  {"id": "151", "kind": "tv", "title": "Stranger Things", "year": 2016, "chars": "Joyce Byers, Will", "yt": "jIQ9z2bxXyg", "start":2, "len":40},
-  {"id": "152", "kind": "tv", "title": "Avatar: The Last Airbender", "year": 2006, "chars": "Uncle Iroh", "yt": "2SCGPDQNfkg", "start":2, "len":40},
-  {"id": "153", "kind": "movie", "title": "Who Framed Roger Rabbit", "year": 1988, "chars": "Roger Rabbit, Eddie Valiant, Jessica Rabbit", "yt": "5lSCIAQLDic", "start":2, "len":40},
-  {"id": "154", "kind": "movie", "title": "Despicable Me", "year": 2010, "chars": "Gru, Agnes", "yt": "tLiM-49DJ7k", "start":2, "len":40},
-  {"id": "155", "kind": "tv", "title": "Glee", "year": 2009, "chars": "Rachel Berry, Finn Hudson", "yt": "ZwgmmcKSSaU", "start":2, "len":40},
-  {"id": "156", "kind": "movie", "title": "Jurassic Park", "year": 1993, "chars": "Alan Grant, John Hammond", "yt": "E8WaFvwtphY", "start":2, "len":40},
-  {"id": "157", "kind": "movie", "title": "The Parent Trap", "year": 1998, "chars": "Hallie, Annie", "yt": "kBidhcL4Vu0", "start":2, "len":40},
-  {"id": "158", "kind": "movie", "title": "Harry Potter and the Goblet of Fire", "year": 2005, "chars": "Dumbledore, Harry Potter", "yt": "pLv1HXl_J10", "start":2, "len":40},
-  {"id": "159", "kind": "movie", "title": "Crazy, Stupid, Love.", "year": 2011, "chars": "Jacob, Hannah", "yt": "bct2xIQPZmQ", "start":2, "len":40},
-  {"id": "160", "kind": "movie", "title": "Everything Everywhere All at Once", "year": 2022, "chars": "Evelyn Wang, Waymond Wang", "yt": "YEg4gylAIk8", "start":2, "len":40},
-  {"id": "161", "kind": "movie", "title": "Psycho", "year": 1960, "chars": "Norman Bates, Marion Crane", "yt": "ghew-s2zPjE", "start":2, "len":40},
-  {"id": "162", "kind": "tv", "title": "Fawlty Towers", "year": 1975, "chars": "Basil Fawlty", "yt": "yfl6Lu3xQW0", "start":2, "len":40},
-  {"id": "163", "kind": "tv", "title": "Rick and Morty", "year": 2017, "chars": "Rick, Morty", "yt": "_gRnvDRFYN4", "start":2, "len":40},
-  {"id": "164", "kind": "movie", "title": "National Treasure", "year": 2004, "chars": "Ben Gates", "yt": "AviSocVyEWI", "start":2, "len":40},
-  {"id": "165", "kind": "movie", "title": "Ace Ventura: Pet Detective", "year": 1994, "chars": "Ace Ventura", "yt": "e7pX9IHTDn8", "start":2, "len":40},
-  {"id": "166", "kind": "movie", "title": "The Karate Kid", "year": 1984, "chars": "Daniel LaRusso, Mr. Miyagi", "yt": "-P11Bcpyw4g", "start":2, "len":40},
-  {"id": "167", "kind": "tv", "title": "The IT Crowd", "year": 2006, "chars": "Roy, Moss", "yt": "nn2FB1P_Mn8", "start":2, "len":40},
-  {"id": "168", "kind": "movie", "title": "Hercules", "year": 1997, "chars": "Hades, Pain, Panic", "yt": "tQ1ZYu40J8o", "start":2, "len":40},
-  {"id": "169", "kind": "movie", "title": "She’s the Man", "year": 2006, "chars": "Viola, Duke", "yt": "jDjB8OdxXzg", "start":2, "len":40},
-  {"id": "170", "kind": "tv", "title": "True Detective", "year": 2014, "chars": "Rust Cohle, Marty Hart", "yt": "0mhZBLUyybo", "start":2, "len":40},
-  {"id": "171", "kind": "movie", "title": "Clueless", "year": 1995, "chars": "Cher Horowitz", "yt": "-nyjzHXMZuY", "start":2, "len":40},
-  {"id": "172", "kind": "movie", "title": "La La Land", "year": 2016, "chars": "Mia, Sebastian", "yt": "_8w9rOpV3gc", "start":2, "len":40},
-  {"id": "173", "kind": "movie", "title": "Captain America: Civil War", "year": 2016, "chars": "Spider-Man, Captain America, Iron Man", "yt": "cfVY9wLKltA", "start":2, "len":40},
-  {"id": "174", "kind": "movie", "title": "10 Things I Hate About You", "year": 1999, "chars": "Patrick Verona, Kat Stratford", "yt": "y6baRWhZ9sE", "start":2, "len":40},
-  {"id": "175", "kind": "movie", "title": "The Sixth Sense", "year": 1999, "chars": "Cole Sear, Malcolm Crowe", "yt": "RoYEEjtDYKw", "start":2, "len":40},
-  {"id": "176", "kind": "movie", "title": "Moana", "year": 2016, "chars": "Maui, Moana", "yt": "79DijItQXMM", "start":2, "len":40},
-  {"id": "177", "kind": "movie", "title": "Joker", "year": 2019, "chars": "Arthur Fleck (Joker)", "yt": "Tl5zk46i0Bs", "start":2, "len":40},
-  {"id": "178", "kind": "movie", "title": "The Dark Knight Rises", "year": 2012, "chars": "Bane", "yt": "tI2kwbKnPW0", "start":2, "len":40},
-  {"id": "179", "kind": "tv", "title": "The Big Bang Theory", "year": 2009, "chars": "Sheldon Cooper, Penny", "yt": "pm-gFXdmqik", "start":2, "len":40},
-  {"id": "180", "kind": "movie", "title": "Space Jam", "year": 1996, "chars": "Michael Jordan, Bugs Bunny", "yt": "91ex6ywLE9E", "start":2, "len":40},
-  {"id": "181", "kind": "movie", "title": "Wonder Woman", "year": 2017, "chars": "Diana", "yt": "pJCgeOAKXyg", "start":2, "len":40},
-  {"id": "182", "kind": "movie", "title": "The Fault in Our Stars", "year": 2014, "chars": "Hazel Grace, Augustus Waters", "yt": "hb1zhDe_SYk", "start":2, "len":40},
-  {"id": "183", "kind": "movie", "title": "The Terminator", "year": 1984, "chars": "The Terminator", "yt": "nqWCUWNn5As", "start":2, "len":40},
-  {"id": "184", "kind": "movie", "title": "The Shining", "year": 1980, "chars": "Jack Torrance, Wendy Torrance", "yt": "WDpipB4yehk", "start":2, "len":40},
-  {"id": "185", "kind": "movie", "title": "The Devil Wears Prada", "year": 2006, "chars": "Miranda Priestly, Andy Sachs", "yt": "-rDTRuCOs9g", "start":2, "len":40},
-  {"id": "186", "kind": "tv", "title": "Succession", "year": 2019, "chars": "Logan Roy, Kendall, Roman", "yt": "dYqqW3c2mBU", "start":2, "len":40},
-  {"id": "187", "kind": "movie", "title": "Pitch Perfect", "year": 2012, "chars": "Beca", "yt": "Ixi9imJZ40M", "start":2, "len":40},
-  {"id": "188", "kind": "movie", "title": "Taxi Driver", "year": 1976, "chars": "Travis Bickle", "yt": "-QWL-FwX4t4", "start":2, "len":40},
-  {"id": "189", "kind": "tv", "title": "Lost", "year": 2004, "chars": "Jack Shephard", "yt": "xuYbd15n5t8", "start":2, "len":40},
-  {"id": "190", "kind": "movie", "title": "Mrs. Doubtfire", "year": 1993, "chars": "Mrs. Doubtfire (Daniel Hillard)", "yt": "7m8_QLnRBFo", "start":2, "len":40},
-  {"id": "191", "kind": "movie", "title": "The Princess Diaries", "year": 2001, "chars": "Mia Thermopolis, Queen Clarisse", "yt": "z5SluxprhnA", "start":2, "len":40},
-  {"id": "192", "kind": "tv", "title": "The Sopranos", "year": 2001, "chars": "Paulie, Christopher", "yt": "m-YO0Kt4yVQ", "start":2, "len":40},
-  {"id": "193", "kind": "movie", "title": "Iron Man", "year": 2008, "chars": "Tony Stark", "yt": "FRIUhO4MdGU", "start":2, "len":40},
-  {"id": "194", "kind": "tv", "title": "Seinfeld", "year": 1997, "chars": "Frank Costanza, George", "yt": "jYWE7QgYGvM", "start":2, "len":40},
-  {"id": "195", "kind": "movie", "title": "The Grand Budapest Hotel", "year": 2014, "chars": "M. Gustave, Zero", "yt": "fmH0tKU0B4g", "start":2, "len":40},
-  {"id": "196", "kind": "movie", "title": "Catch Me If You Can", "year": 2002, "chars": "Frank Abagnale, Carl Hanratty", "yt": "Zb8exHKOaK0", "start":2, "len":40},
-  {"id": "197", "kind": "tv", "title": "Gossip Girl", "year": 2007, "chars": "Serena van der Woodsen, Blair Waldorf", "yt": "Xv_knp2mOuk", "start":2, "len":40},
-  {"id": "198", "kind": "movie", "title": "Men in Black", "year": 1997, "chars": "Agent J, Agent K", "yt": "gPIhKLmO7WU", "start":2, "len":40},
-  {"id": "199", "kind": "movie", "title": "Kingsman: The Secret Service", "year": 2014, "chars": "Harry Hart", "yt": "Yl5wMXsSDbY", "start":2, "len":40},
-  {"id": "200", "kind": "movie", "title": "Guardians of the Galaxy", "year": 2014, "chars": "Peter Quill", "yt": "cbAfhBNQ2qU", "start":2, "len":40},
-  {"id": "201", "kind": "movie", "title": "Toy Story 3", "year": 2010, "chars": "Woody, Buzz Lightyear, Andy", "yt": "KdEYukTnfQU", "start":2, "len":40},
-  {"id": "202", "kind": "movie", "title": "Beauty and the Beast", "year": 1991, "chars": "Belle, the Beast", "yt": "_iQBC2EMPao", "start":2, "len":40},
-  {"id": "203", "kind": "tv", "title": "SpongeBob SquarePants", "year": 2001, "chars": "SpongeBob, Squidward", "yt": "96NUsT-1k2A", "start":2, "len":40},
-  {"id": "204", "kind": "movie", "title": "Get Out", "year": 2017, "chars": "Chris Washington, Missy Armitage", "yt": "kBwVWrBk_uo", "start":2, "len":40},
-  {"id": "205", "kind": "movie", "title": "The Lion King", "year": 1994, "chars": "Mufasa, Simba", "yt": "leDXfrt2r9A", "start":2, "len":40},
-  {"id": "206", "kind": "movie", "title": "The Matrix", "year": 1999, "chars": "Neo, Morpheus", "yt": "zE7PKRjrid4", "start":2, "len":40},
-  {"id": "207", "kind": "movie", "title": "The Godfather", "year": 1972, "chars": "Vito Corleone", "yt": "D6me2-OurCw", "start":2, "len":40},
-  {"id": "208", "kind": "movie", "title": "The Fast and the Furious", "year": 2001, "chars": "Dominic Toretto, Brian O’Conner", "yt": "L_Cb1OepkY8", "start":2, "len":40},
-  {"id": "209", "kind": "movie", "title": "Spider-Man 2", "year": 2004, "chars": "Peter Parker, Doctor Octopus", "yt": "v4F6UB8n6uM", "start":2, "len":40},
-  {"id": "210", "kind": "movie", "title": "Dune", "year": 2021, "chars": "Paul Atreides, Reverend Mother Mohiam", "yt": "7SCWy9gsw3E", "start":2, "len":40},
-  {"id": "211", "kind": "movie", "title": "Terminator 2: Judgment Day", "year": 1991, "chars": "The Terminator, John Connor", "yt": "Q32XjN2hYOY", "start":2, "len":40},
-  {"id": "212", "kind": "movie", "title": "Knives Out", "year": 2019, "chars": "Benoit Blanc", "yt": "4kmOp1fSr4g", "start":2, "len":40},
-  {"id": "213", "kind": "movie", "title": "Avengers: Endgame", "year": 2019, "chars": "Captain America, Thor, Iron Man", "yt": "4WGMhicoCa8", "start":2, "len":40},
-  {"id": "214", "kind": "movie", "title": "Monty Python and the Holy Grail", "year": 1975, "chars": "King Arthur, the Black Knight", "yt": "3e0mrddCjaQ", "start":2, "len":40},
-  {"id": "215", "kind": "movie", "title": "Austin Powers: International Man of Mystery", "year": 1997, "chars": "Dr. Evil, Number Two", "yt": "EJR1H5tf5wE", "start":2, "len":40},
-  {"id": "216", "kind": "movie", "title": "Harry Potter and the Deathly Hallows – Part 2", "year": 2011, "chars": "Neville Longbottom, Voldemort", "yt": "iRD-qxYkwkc", "start":2, "len":40},
-  {"id": "217", "kind": "tv", "title": "The Last of Us", "year": 2023, "chars": "Joel, Ellie", "yt": "L5BOmXpJ8q8", "start":2, "len":40},
-  {"id": "218", "kind": "movie", "title": "Gremlins", "year": 1984, "chars": "Billy Peltzer, Gizmo", "yt": "kgfgiLlW-yw", "start":2, "len":40},
-  {"id": "219", "kind": "tv", "title": "The Wire", "year": 2002, "chars": "Jimmy McNulty, Bunk Moreland", "yt": "Y5PckXi1OMs", "start":2, "len":40},
-  {"id": "220", "kind": "movie", "title": "The Truman Show", "year": 1998, "chars": "Truman Burbank", "yt": "MdwuW8n3JYA", "start":2, "len":40},
-  {"id": "221", "kind": "movie", "title": "Slumdog Millionaire", "year": 2008, "chars": "Jamal Malik", "yt": "-PV4zEju1Hk", "start":2, "len":40},
-  {"id": "222", "kind": "movie", "title": "E.T. the Extra-Terrestrial", "year": 1982, "chars": "Elliott, E.T.", "yt": "6xZif3WmG7I", "start":2, "len":40},
-  {"id": "223", "kind": "tv", "title": "Chernobyl", "year": 2019, "chars": "Valery Legasov", "yt": "Wu-XzzzzjL8", "start":2, "len":40},
-  {"id": "224", "kind": "movie", "title": "Brave", "year": 2012, "chars": "Merida", "yt": "_oxso1pWCHY", "start":2, "len":40},
-  {"id": "225", "kind": "movie", "title": "Inside Out 2", "year": 2024, "chars": "Anxiety, Joy, Riley", "yt": "RwtAu-CowiI", "start":2, "len":40},
-  {"id": "226", "kind": "movie", "title": "Harry Potter and the Philosopher’s Stone", "year": 2001, "chars": "Hagrid, Harry Potter", "yt": "z9GwIeh5FIY", "start":2, "len":40},
-  {"id": "227", "kind": "movie", "title": "Interstellar", "year": 2014, "chars": "Cooper, Murph", "yt": "xGrbLfi1VJ8", "start":2, "len":40},
-  {"id": "228", "kind": "tv", "title": "Scrubs", "year": 2007, "chars": "J.D., Turk", "yt": "-7hjdC8-jbw", "start":2, "len":40},
-  {"id": "229", "kind": "movie", "title": "Napoleon Dynamite", "year": 2004, "chars": "Napoleon Dynamite", "yt": "WGdc92EOdm0", "start":2, "len":40},
-  {"id": "230", "kind": "movie", "title": "Oppenheimer", "year": 2023, "chars": "J. Robert Oppenheimer", "yt": "tK0IDmSYYGk", "start":2, "len":40},
-  {"id": "231", "kind": "movie", "title": "The Breakfast Club", "year": 1985, "chars": "Bender, Claire, Andrew, Brian, Allison", "yt": "KVkTAhSxV9w", "start":2, "len":40},
-  {"id": "232", "kind": "movie", "title": "Crazy Rich Asians", "year": 2018, "chars": "Rachel Chu, Eleanor Young", "yt": "oN6VvdPnOzM", "start":2, "len":40},
-  {"id": "233", "kind": "movie", "title": "Once Upon a Time in Hollywood", "year": 2019, "chars": "Cliff Booth, Bruce Lee", "yt": "tlUuNg6PEXA", "start":2, "len":40},
-  {"id": "234", "kind": "movie", "title": "Planet of the Apes", "year": 1968, "chars": "George Taylor", "yt": "0_m8AmAm-XE", "start":2, "len":40},
-  {"id": "235", "kind": "movie", "title": "The Greatest Showman", "year": 2017, "chars": "P. T. Barnum, Phillip Carlyle", "yt": "KL2bISAB1j8", "start":2, "len":40},
-  {"id": "236", "kind": "movie", "title": "Whiplash", "year": 2014, "chars": "Andrew Neiman, Terence Fletcher", "yt": "GBvBu5ErSSo", "start":2, "len":40},
-  {"id": "237", "kind": "movie", "title": "Big", "year": 1988, "chars": "Josh Baskin", "yt": "11Kv8mnxdCM", "start":2, "len":40},
-  {"id": "238", "kind": "movie", "title": "The Incredibles", "year": 2004, "chars": "Edna Mode, Mr. Incredible", "yt": "--x7rxl0t4g", "start":2, "len":40},
-  {"id": "239", "kind": "movie", "title": "A Star Is Born", "year": 2018, "chars": "Ally, Jackson Maine", "yt": "qRLEyJEyh7I", "start":2, "len":40},
-  {"id": "240", "kind": "movie", "title": "WALL-E", "year": 2008, "chars": "WALL-E, EVE", "yt": "GyBeACKZOU4", "start":2, "len":40},
-  {"id": "241", "kind": "tv", "title": "Friends", "year": 1998, "chars": "Monica, Rachel, Joey, Chandler", "yt": "kA-p4EH3IQY", "start":2, "len":40},
-  {"id": "242", "kind": "movie", "title": "Black Panther", "year": 2018, "chars": "T’Challa, Killmonger", "yt": "Gtepp-acYOY", "start":2, "len":40},
-  {"id": "243", "kind": "tv", "title": "Friends", "year": 1998, "chars": "Monica, Chandler", "yt": "f2wsZPQZAmk", "start":2, "len":40},
-  {"id": "244", "kind": "movie", "title": "Easy A", "year": 2010, "chars": "Olive Penderghast", "yt": "ylvh800i85I", "start":2, "len":40},
-  {"id": "245", "kind": "movie", "title": "Mary Poppins", "year": 1964, "chars": "Mary Poppins, Bert, Jane, Michael", "yt": "WKdJ0wPZpBQ", "start":2, "len":40},
-  {"id": "246", "kind": "movie", "title": "School of Rock", "year": 2003, "chars": "Dewey Finn", "yt": "RVb5kJv4JbE", "start":2, "len":40},
-  {"id": "247", "kind": "movie", "title": "Jurassic World", "year": 2015, "chars": "Owen Grady", "yt": "Sij6XhXhlb0", "start":2, "len":40},
-  {"id": "248", "kind": "movie", "title": "Home Alone 2: Lost in New York", "year": 1992, "chars": "Kevin McCallister", "yt": "SV7VXI-olJ8", "start":2, "len":40},
-  {"id": "249", "kind": "movie", "title": "Top Gun: Maverick", "year": 2022, "chars": "Pete “Maverick” Mitchell", "yt": "KElCq5eCegE", "start":2, "len":40},
-  {"id": "250", "kind": "movie", "title": "Furious 7", "year": 2015, "chars": "Dominic Toretto, Brian O’Conner", "yt": "eUhV8NiASfY", "start":2, "len":40},
-  {"id": "251", "kind": "tv", "title": "Suits", "year": 2011, "chars": "Harvey Specter, Mike Ross", "yt": "tcx3zwhEIOw", "start":2, "len":40},
-  {"id": "252", "kind": "movie", "title": "Ghost", "year": 1990, "chars": "Sam Wheat, Molly Jensen", "yt": "yGWMarTNw28", "start":2, "len":40},
-  {"id": "253", "kind": "movie", "title": "Liar Liar", "year": 1997, "chars": "Fletcher Reede", "yt": "dAE7uOO_4v4", "start":2, "len":40},
-  {"id": "254", "kind": "tv", "title": "Money Heist", "year": 2021, "chars": "The Professor", "yt": "juIcenNQWLs", "start":2, "len":40},
-  {"id": "255", "kind": "movie", "title": "Juno", "year": 2007, "chars": "Juno MacGuff", "yt": "NocIDIeLTqA", "start":2, "len":40},
-  {"id": "256", "kind": "movie", "title": "The Empire Strikes Back", "year": 1980, "chars": "Darth Vader, Luke Skywalker", "yt": "or41XCSgv0E", "start":2, "len":40},
-  {"id": "257", "kind": "movie", "title": "Madagascar", "year": 2005, "chars": "King Julien, Alex, Marty", "yt": "ApuFuuCJc3s", "start":2, "len":40},
-  {"id": "258", "kind": "movie", "title": "Superbad", "year": 2007, "chars": "McLovin, Seth, Evan", "yt": "2HTHPtoNJLk", "start":2, "len":40},
-  {"id": "259", "kind": "movie", "title": "Bring It On", "year": 2000, "chars": "Torrance, Isis", "yt": "ZSeB1Yfp3tM", "start":2, "len":40},
-  {"id": "260", "kind": "movie", "title": "Pulp Fiction", "year": 1994, "chars": "Vincent Vega, Jules Winnfield", "yt": "6Pkq_eBHXJ4", "start":2, "len":40},
-  {"id": "261", "kind": "tv", "title": "Prison Break", "year": 2005, "chars": "Michael Scofield", "yt": "TtBjClzicCU", "start":2, "len":40},
-  {"id": "262", "kind": "movie", "title": "Die Hard", "year": 1988, "chars": "John McClane, Hans Gruber", "yt": "BSRrzrQtmto", "start":2, "len":40},
-  {"id": "263", "kind": "movie", "title": "Grease", "year": 1978, "chars": "Danny Zuko, Sandy", "yt": "sqtcIXeimXg", "start":2, "len":40},
-  {"id": "264", "kind": "movie", "title": "Gone Girl", "year": 2014, "chars": "Amy Dunne", "yt": "6G7fJKE7gEo", "start":2, "len":40},
-  {"id": "265", "kind": "movie", "title": "Thor: Ragnarok", "year": 2017, "chars": "Thor, Hulk", "yt": "4gl3V5kUx6w", "start":2, "len":40},
-  {"id": "266", "kind": "tv", "title": "The Umbrella Academy", "year": 2019, "chars": "the Hargreeves siblings", "yt": "TVxBmXz5QGs", "start":2, "len":40},
-  {"id": "267", "kind": "movie", "title": "Finding Nemo", "year": 2003, "chars": "Dory, Marlin", "yt": "y9FGsJ3PYVw", "start":2, "len":40},
-  {"id": "268", "kind": "tv", "title": "Grey’s Anatomy", "year": 2005, "chars": "Meredith Grey, Derek Shepherd", "yt": "YMEt32aG_s4", "start":2, "len":40},
-  {"id": "269", "kind": "tv", "title": "Game of Thrones", "year": 2011, "chars": "Daenerys Targaryen", "yt": "4fAgcUZZEN0", "start":2, "len":40},
-  {"id": "270", "kind": "movie", "title": "Harry Potter and the Chamber of Secrets", "year": 2002, "chars": "Harry Potter, Dobby", "yt": "Ud00YvG2cwM", "start":2, "len":40},
-  {"id": "271", "kind": "movie", "title": "Inglourious Basterds", "year": 2009, "chars": "Hans Landa", "yt": "83FKo_Xj-Ks", "start":2, "len":40},
-  {"id": "272", "kind": "movie", "title": "Top Gun", "year": 1986, "chars": "Maverick, Goose", "yt": "HDi7qOhECW8", "start":2, "len":40},
-  {"id": "273", "kind": "movie", "title": "Jaws", "year": 1975, "chars": "Chief Martin Brody, Quint", "yt": "2I91DJZKRxs", "start":2, "len":40},
-  {"id": "274", "kind": "movie", "title": "Wayne’s World", "year": 1992, "chars": "Wayne, Garth", "yt": "kMdgOF0e-lI", "start":2, "len":40},
-  {"id": "275", "kind": "tv", "title": "Squid Game", "year": 2021, "chars": "Seong Gi-hun", "yt": "N6Bn9-oKEOY", "start":2, "len":40},
-  {"id": "276", "kind": "movie", "title": "Mean Girls", "year": 2004, "chars": "Cady Heron, Regina George", "yt": "re5veV2F7eY", "start":2, "len":40},
-  {"id": "277", "kind": "movie", "title": "The Lord of the Rings: The Fellowship of the Ring", "year": 2001, "chars": "Gandalf", "yt": "3bReJswiMGM", "start":2, "len":40},
-  {"id": "278", "kind": "tv", "title": "The Good Place", "year": 2017, "chars": "Eleanor Shellstrop, Michael", "yt": "SVG1YGdoCWo", "start":2, "len":40},
-  {"id": "279", "kind": "movie", "title": "Django Unchained", "year": 2012, "chars": "Django, Dr. King Schultz", "yt": "X8guAnshoMk", "start":2, "len":40},
-  {"id": "280", "kind": "tv", "title": "The Simpsons", "year": 1992, "chars": "Homer Simpson (Mr. Plow)", "yt": "TX3Bv5To1qs", "start":2, "len":40},
-  {"id": "281", "kind": "movie", "title": "The Social Network", "year": 2010, "chars": "Mark Zuckerberg, Eduardo Saverin", "yt": "6-_tIPShuwQ", "start":2, "len":40},
-  {"id": "282", "kind": "movie", "title": "Inception", "year": 2010, "chars": "Cobb, Ariadne", "yt": "i3-jlhJgU9U", "start":2, "len":40},
-  {"id": "283", "kind": "tv", "title": "The Boys", "year": 2019, "chars": "Homelander", "yt": "ZlJYhW_QBm0", "start":2, "len":40},
-  {"id": "284", "kind": "tv", "title": "Doctor Who", "year": 2007, "chars": "The Doctor, Sally Sparrow", "yt": "cwdbLu_x0gY", "start":2, "len":40},
-  {"id": "285", "kind": "movie", "title": "How to Train Your Dragon", "year": 2010, "chars": "Hiccup, Toothless", "yt": "nPmIhH775L4", "start":2, "len":40},
-  {"id": "286", "kind": "movie", "title": "The Mummy", "year": 1999, "chars": "Rick O’Connell, Evelyn", "yt": "NW2QM6c1wAI", "start":2, "len":40},
-  {"id": "287", "kind": "tv", "title": "Mr. Bean", "year": 1990, "chars": "Mr. Bean", "yt": "9LhLjpsstPY", "start":2, "len":40},
-  {"id": "288", "kind": "movie", "title": "Fight Club", "year": 1999, "chars": "Tyler Durden", "yt": "dC1yHLp9bWA", "start":2, "len":40},
-  {"id": "289", "kind": "movie", "title": "Aladdin", "year": 1992, "chars": "Genie, Aladdin", "yt": "3mA5zI18ga8", "start":2, "len":40},
-  {"id": "290", "kind": "tv", "title": "The Office", "year": 2009, "chars": "Dwight Schrute, Michael Scott", "yt": "gO8N3L_aERg", "start":2, "len":40},
-  {"id": "291", "kind": "tv", "title": "New Girl", "year": 2013, "chars": "Nick Miller, Jess Day", "yt": "8PBBU-Vs4fk", "start":2, "len":40},
-  {"id": "292", "kind": "movie", "title": "Anchorman: The Legend of Ron Burgundy", "year": 2004, "chars": "Ron Burgundy, Brick Tamland", "yt": "Wu7xiJ_HD6c", "start":2, "len":40},
-  {"id": "293", "kind": "tv", "title": "Breaking Bad", "year": 2012, "chars": "Walter White, Declan", "yt": "MPYlxeG-8_w", "start":2, "len":40},
-  {"id": "294", "kind": "movie", "title": "Blade Runner", "year": 1982, "chars": "Roy Batty, Rick Deckard", "yt": "HU7Ga7qTLDU", "start":2, "len":40},
-  {"id": "295", "kind": "movie", "title": "The Mask", "year": 1994, "chars": "Stanley Ipkiss (The Mask)", "yt": "yFycQEWduEQ", "start":2, "len":40},
-  {"id": "296", "kind": "movie", "title": "Cast Away", "year": 2000, "chars": "Chuck Noland, Wilson", "yt": "LHtgKIFoQfE", "start":2, "len":40},
-  {"id": "297", "kind": "tv", "title": "Severance", "year": 2022, "chars": "Mark, Helly, Dylan, Irving", "yt": "VngE9BiEe7Q", "start":2, "len":40},
-  {"id": "298", "kind": "movie", "title": "Good Will Hunting", "year": 1997, "chars": "Will Hunting, Sean Maguire", "yt": "8GY3sO47YYo", "start":2, "len":40},
-  {"id": "299", "kind": "movie", "title": "Jumanji", "year": 1995, "chars": "Alan Parrish, Judy, Peter", "yt": "RWwhA2v9UFQ", "start":2, "len":40},
-  {"id": "300", "kind": "movie", "title": "Beetlejuice", "year": 1988, "chars": "Lydia Deetz, Delia Deetz", "yt": "bNQd5uJSFwQ", "start":2, "len":40}
-];
-
 const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const isFile = location.protocol === "file:";
-const ytUrl = m => `https://www.youtube.com/watch?v=${m.yt}&t=${m.start}s`;
-let current = null, player = null, ytReady = false, ytFailed = false, pending = null, ended = false, watchdog = null, tapTimer = null;
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch(_) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch(_) {} },
+  del: k => { try { localStorage.removeItem(k); } catch(_) {} },
+};
+const ytUrl = m => `https://www.youtube.com/watch?v=${m.yt}&t=${m.start || 0}s`;
+const pad = n => String(n).padStart(3, "0");
+
+/* ---------- Deck: loaded from deck.json; unsaved edits are kept as a draft in this browser ---------- */
+let DECK = [], NEXT_ID = 1, dirty = false, loadError = false;
+async function loadDeck(){
+  try {
+    const r = await fetch("deck.json?t=" + Date.now(), {cache:"no-store"});
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    DECK = Array.isArray(j) ? j : j.cards;
+    NEXT_ID = j.nextId || 1;
+  } catch(_) { loadError = true; DECK = []; }
+  const d = store.get("deckDraft");
+  if (d) { try { const j = JSON.parse(d); DECK = j.cards; NEXT_ID = j.nextId; dirty = true; } catch(_) {} }
+  NEXT_ID = Math.max(NEXT_ID, ...DECK.map(c => parseInt(c.id, 10) + 1), 1);
+}
+function changed(){
+  dirty = true;
+  store.set("deckDraft", JSON.stringify({nextId: NEXT_ID, cards: DECK}));
+  updateDirty(); renderManage();
+}
+function updateDirty(){
+  $("#dirtyBar").classList.toggle("on", dirty);
+  $("#deckInfo").textContent = loadError && !DECK.length
+    ? "Couldn’t load deck.json. Make sure it’s uploaded next to index.html."
+    : `${DECK.length} cards in the deck.`;
+}
+function deckJson(){ return JSON.stringify({nextId: NEXT_ID, cards: DECK}, null, 1); }
 
 /* ---------- Routing: #c004 plays card 004 ---------- */
 function route(){
   const h = location.hash.slice(1);
   document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
   const card = DECK.find(m => "c" + m.id === h);
-  if (h === "cards"){ $("#cards").classList.add("on"); renderSheets(); stop(); }
-  else if (h === "check"){ $("#check").classList.add("on"); renderCheck(); stop(); }
+  if (h === "cards"){ $("#cards").classList.add("on"); initRange(); renderSheets(); stop(); }
+  else if (h === "manage" || h === "check"){ $("#manage").classList.add("on"); renderManage(); stop(); }
   else if (card){ $("#play").classList.add("on"); openCard(card); }
+  else if (/^c\d+$/.test(h)){ $("#play").classList.add("on"); missingCard(h.slice(1)); }
   else { $("#home").classList.add("on"); stop(); }
   scrollTo(0,0);
 }
 addEventListener("hashchange", route);
 document.addEventListener("click", e => {
-  if (!e.target.closest("[data-random]")) return;
-  const pool = DECK.filter(m => m !== current);
+  if (!e.target.closest("[data-random]") || !DECK.length) return;
+  const pool = DECK.length > 1 ? DECK.filter(m => m !== current) : DECK;
   location.hash = "c" + pool[Math.floor(Math.random()*pool.length)].id;
 });
 
 /* ---------- YouTube ---------- */
+let ytReady = false, ytFailed = false, pending = null;
 const tag = document.createElement("script");
 tag.src = "https://www.youtube.com/iframe_api";
 tag.onerror = () => apiFail();
@@ -527,14 +342,25 @@ window.onYouTubeIframeAPIReady = () => { ytReady = true; ytFailed = false; if (p
 function apiFail(){
   ytFailed = true;
   if (current) idle(isFile
-    ? "YouTube won’t play on a page opened from a file. Open the page from its web address (GitHub Pages or a local server)."
-    : "YouTube didn’t load on this page. Check the connection, or open the page in a regular browser tab.", true);
+    ? "YouTube won’t play on a page opened from a file. Open the page from its web address."
+    : "YouTube didn’t load on this page. Check the connection and reload.", true);
 }
 
 /* ---------- Player ---------- */
+let current = null, player = null, ended = false, watchdog = null, tapTimer = null;
+function missingCard(id){
+  current = null; stop();
+  $("#screen").classList.remove("live","tap");
+  $("#cardNum").textContent = "Card " + id;
+  $("#bonusLine").textContent = "";
+  $("#answer").innerHTML = "";
+  $("#playControls").hidden = true;
+  idle("This card isn’t in the deck anymore. Draw another one.");
+}
 function openCard(m){
   current = m; ended = false;
-    $("#answer").innerHTML = "";
+  $("#playControls").hidden = false;
+  $("#answer").innerHTML = "";
   $("#cardNum").textContent = "Card " + m.id;
   $("#bonusLine").textContent = "Bonus: name the title and the characters";
   $("#playBtn").textContent = "Play scene";
@@ -545,22 +371,21 @@ function openCard(m){
 }
 function load(m){
   pending = null;
-  const vars = {start:m.start, end:m.start+m.len, controls:0, disablekb:1, fs:0, rel:0, iv_load_policy:3, playsinline:1};
+  const st = m.start || 0, en = st + (m.len || 40);
   if (!player){
-    player = new YT.Player("yt", {videoId:m.yt, playerVars:vars, events:{onStateChange:onState, onError:onErr}});
-  } else {
-    player.cueVideoById({videoId:m.yt, startSeconds:m.start, endSeconds:m.start+m.len});
-  }
+    player = new YT.Player("yt", {videoId:m.yt,
+      playerVars:{start:st, end:en, controls:0, disablekb:1, fs:0, rel:0, iv_load_policy:3, playsinline:1},
+      events:{onStateChange:onState, onError:onErr}});
+  } else player.cueVideoById({videoId:m.yt, startSeconds:st, endSeconds:en});
 }
+const ERRORS = {2:"The clip link is broken.", 5:"This browser can’t play the clip.", 100:"The clip was removed from YouTube.",
+  101:"The clip’s owner doesn’t allow it to play inside other sites.", 150:"The clip’s owner doesn’t allow it to play inside other sites.",
+  153:"YouTube needs this page to be opened from a web address, not a file."};
 function onErr(e){
   clearTimeout(tapTimer); clearInterval(watchdog);
   $("#screen").classList.remove("live","tap");
-  const why = {
-    2:"The clip link is broken.", 5:"This browser can’t play the clip.", 100:"The clip was removed from YouTube.",
-    101:"The clip’s owner doesn’t allow it to play inside other sites.", 150:"The clip’s owner doesn’t allow it to play inside other sites.",
-    153:"YouTube needs this page to be opened from a web address, not a file."
-  }[e.data] || "The clip didn’t play (error " + e.data + ").";
-  idle(e.data === 153 ? why : why + " Swap its YouTube ID in the deck list.", true);
+  const why = ERRORS[e.data] || "The clip didn’t play (error " + e.data + ").";
+  idle(e.data === 153 ? why : why + " Replace it on the Manage deck page.", true);
 }
 function onState(e){
   const s = e.data, live = s === YT.PlayerState.PLAYING || s === YT.PlayerState.BUFFERING;
@@ -579,18 +404,18 @@ function finish(){
   idle("Scene over. Place your card, then reveal.");
 }
 function idle(msg, withLink){
-  $("#idleMsg").innerHTML = "";
-  $("#idleMsg").append(msg);
+  const el = $("#idleMsg"); el.innerHTML = ""; el.append(msg);
   if (withLink && current){
     const a = document.createElement("a");
     a.href = ytUrl(current); a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open the scene in YouTube instead";
-    $("#idleMsg").append(document.createElement("br"), a);
+    el.append(document.createElement("br"), a);
   }
 }
 function play(fromStart){
   if (ytFailed) return apiFail();
   if (!player || !player.playVideo || !current) return;
-  if (fromStart || ended){ player.seekTo(current.start, true); ended = false; }
+  const st = current.start || 0, len = current.len || 40;
+  if (fromStart || ended){ player.seekTo(st, true); ended = false; }
   player.playVideo();
   clearTimeout(tapTimer);
   tapTimer = setTimeout(() => {   // some phones only start a video the user taps directly
@@ -598,80 +423,247 @@ function play(fromStart){
     if (s !== YT.PlayerState.PLAYING && s !== YT.PlayerState.BUFFERING) $("#screen").classList.add("tap");
   }, 2500);
   clearInterval(watchdog);
-  watchdog = setInterval(() => {
-    if (player.getCurrentTime && player.getCurrentTime() >= current.start + current.len) finish();
-  }, 500);
+  watchdog = setInterval(() => { if (player.getCurrentTime && player.getCurrentTime() >= st + len) finish(); }, 500);
 }
 function stop(){ clearTimeout(tapTimer); clearInterval(watchdog); if (player && player.pauseVideo) player.pauseVideo(); }
-
 $("#playBtn").onclick = () => {
   if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
   else play(false);
 };
 $("#replayBtn").onclick = () => play(true);
-$("#soundOnly").onchange = e => {
-  $("#screen").classList.toggle("sound", e.target.checked);
-  try { localStorage.setItem("soundOnly", e.target.checked ? "1" : ""); } catch(_){}
-};
-try { if (localStorage.getItem("soundOnly")){ $("#soundOnly").checked = true; $("#screen").classList.add("sound"); } } catch(_){}
-
+$("#soundOnly").onchange = e => { $("#screen").classList.toggle("sound", e.target.checked); store.set("soundOnly", e.target.checked ? "1" : ""); };
+if (store.get("soundOnly")){ $("#soundOnly").checked = true; $("#screen").classList.add("sound"); }
 $("#revealBtn").onclick = () => {
-  const m = current, esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const m = current; if (!m) return;
   $("#answer").innerHTML =
     `<div class="marquee reveal-anim"><div class="marquee-in">
-       <div class="year">${m.year}</div>
+       <div class="year">${esc(m.year)}</div>
        <div class="t">${esc(m.title)}</div>
        <div class="k">${m.kind === "tv" ? "TV series" : "Movie"}</div>
-       <dl class="facts"><dt class="hit">Characters</dt><dd class="hit">${esc(m.chars)}</dd></dl>
+       <dl class="facts"><dt class="hit">Characters</dt><dd class="hit">${esc(m.chars) || "—"}</dd></dl>
      </div></div>`;
 };
 
-/* ---------- Clip checker ---------- */
-let ck = null, ckQueue = [], ckTimer = null, ckId = null;
-function renderCheck(){
-  if ($("#checkList").rows.length) return;
-  $("#checkList").innerHTML = DECK.map(m =>
-    `<tr id="ck${m.id}"><td>${m.id}</td><td>${m.title}</td><td class="st">Not checked</td><td><a href="${ytUrl(m)}" target="_blank" rel="noopener">Open</a></td></tr>`).join("");
+/* ---------- Manage: list, check, edit, delete ---------- */
+const ckStatus = {};
+function renderManage(){
+  updateDirty();
+  const q = $("#filter").value.trim().toLowerCase();
+  const rows = DECK.slice().sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric:true}))
+    .filter(m => !q || (m.title + " " + m.chars + " " + m.id).toLowerCase().includes(q));
+  $("#checkList").innerHTML = `<tr><th>#</th><th>Title</th><th>Year</th><th>Characters</th><th>Status</th><th></th></tr>` +
+    rows.map(m => {
+      const st = ckStatus[m.id] || ["Not checked", ""];
+      return `<tr data-id="${esc(m.id)}"><td>${esc(m.id)}</td><td>${esc(m.title)}${m.kind === "tv" ? " <small>(TV)</small>" : ""}</td>
+        <td>${esc(m.year)}</td><td>${esc(m.chars)}</td><td class="st ${st[1]}">${esc(st[0])}</td>
+        <td class="acts"><button class="mini" data-act="check">Check</button><a class="mini" href="${ytUrl(m)}" target="_blank" rel="noopener">Open</a><button class="mini" data-act="edit">Edit</button><button class="mini del" data-act="del">Delete</button></td></tr>`;
+    }).join("");
+  const done = DECK.filter(m => ckStatus[m.id] && ckStatus[m.id][1]).length, good = DECK.filter(m => ckStatus[m.id] && ckStatus[m.id][1] === "ok").length;
+  $("#checkSum").textContent = done ? `${done} of ${DECK.length} checked, ${good} play` : `${DECK.length} cards`;
 }
-function ckSet(id, text, ok){
-  const td = document.querySelector(`#ck${id} .st`);
-  td.textContent = text; td.className = "st " + (ok === true ? "ok" : ok === false ? "bad" : "");
-  const all = DECK.length, done = DECK.filter(m => /Plays|Blocked|Removed|No answer|Error/.test(document.querySelector(`#ck${m.id} .st`).textContent)).length;
-  const good = DECK.filter(m => document.querySelector(`#ck${m.id} .st`).textContent === "Plays").length;
-  $("#checkSum").textContent = `${done} of ${all} checked, ${good} play`;
-}
+$("#filter").oninput = renderManage;
+$("#checkList").onclick = e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const id = b.closest("tr").dataset.id, m = DECK.find(c => c.id === id);
+  if (b.dataset.act === "del"){
+    if (!confirm(`Delete card ${m.id}, ${m.title} (${m.year})? A printed copy of this card will stop working.`)) return;
+    DECK = DECK.filter(c => c !== m); delete ckStatus[id]; changed();
+  } else if (b.dataset.act === "edit") startEdit(m);
+  else if (b.dataset.act === "check"){ if (!ytReady) return; ckQueue = [m]; if (!ckBusy) ckNext(); }
+};
+
+let ck = null, ckQueue = [], ckTimer = null, ckId = null, ckBusy = false;
+function ckSet(id, text, cls){ ckStatus[id] = [text, cls || ""]; const td = document.querySelector(`#checkList tr[data-id="${id}"] .st`); if (td){ td.textContent = text; td.className = "st " + (cls || ""); } }
 function ckNext(){
   clearTimeout(ckTimer);
   const m = ckQueue.shift();
-  if (!m){ if (ck && ck.stopVideo) ck.stopVideo(); $("#checkBtn").disabled = false; return; }
-  ckId = m.id; ckSet(m.id, "Checking…");
-  ckTimer = setTimeout(() => { ckSet(m.id, "No answer", false); ckNext(); }, 12000);
+  if (!m){ ckBusy = false; if (ck && ck.stopVideo) ck.stopVideo(); $("#checkBtn").disabled = false; renderManage(); return; }
+  ckBusy = true; ckId = m.id; ckSet(m.id, "Checking…");
+  ckTimer = setTimeout(() => { ckSet(m.id, "No answer", "bad"); ckNext(); }, 12000);
   if (!ck){
-    ck = new YT.Player("ck", {videoId:m.yt, playerVars:{start:m.start, playsinline:1, controls:0},
+    ck = new YT.Player("ck", {videoId:m.yt, playerVars:{start:m.start||0, playsinline:1, controls:0},
       events:{
         onReady: e => { e.target.mute(); e.target.playVideo(); },
-        onStateChange: e => { if (e.data === YT.PlayerState.PLAYING){ ckSet(ckId, "Plays", true); ckNext(); }
+        onStateChange: e => { if (e.data === YT.PlayerState.PLAYING){ ckSet(ckId, "Plays", "ok"); ckNext(); }
                               if (e.data === YT.PlayerState.CUED){ e.target.mute(); e.target.playVideo(); } },
-        onError: e => { ckSet(ckId, ({100:"Removed",101:"Blocked by owner",150:"Blocked by owner"}[e.data]) || "Error " + e.data, false); ckNext(); }
+        onError: e => { ckSet(ckId, ({100:"Removed",101:"Blocked by owner",150:"Blocked by owner"}[e.data]) || "Error " + e.data, "bad"); ckNext(); }
       }});
-  } else { ck.mute(); ck.loadVideoById({videoId:m.yt, startSeconds:m.start}); }
+  } else { ck.mute(); ck.loadVideoById({videoId:m.yt, startSeconds:m.start||0}); }
 }
 $("#checkBtn").onclick = () => {
-  if (!ytReady){ $("#checkSum").textContent = isFile ? "Open this page from a web address first." : "YouTube hasn’t loaded on this page."; return; }
-  $("#checkBtn").disabled = true; ckQueue = DECK.slice(); ckNext();
+  if (!ytReady){ $("#checkSum").textContent = "YouTube hasn’t loaded on this page."; return; }
+  $("#checkBtn").disabled = true; ckQueue = DECK.slice().sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric:true})); ckNext();
+};
+
+/* ---------- Add or edit a clip ---------- */
+let editingId = null, pv = null, autoFilled = {};
+function parseLink(s){
+  s = s.trim(); let id = null, start = 0;
+  if (/^[\w-]{11}$/.test(s)) return {id: s, start: 0};
+  try {
+    const u = new URL(s.startsWith("http") ? s : "https://" + s);
+    if (/youtu\.be$/.test(u.hostname)) id = u.pathname.slice(1);
+    else if (u.searchParams.get("v")) id = u.searchParams.get("v");
+    else { const m = u.pathname.match(/\/(?:shorts|embed|live|v)\/([\w-]{11})/); if (m) id = m[1]; }
+    const t = u.searchParams.get("t") || u.searchParams.get("start") || "";
+    const hms = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+    if (hms) start = (+hms[1]||0)*3600 + (+hms[2]||0)*60 + (+hms[3]||0);
+  } catch(_) { const m = s.match(/^[\w-]{11}$/); if (m) id = s; }
+  return id && /^[\w-]{11}$/.test(id.slice(0,11)) ? {id: id.slice(0,11), start} : null;
+}
+function guessFromTitle(t, author){
+  const tv = /\bS\d{1,2}\s?E\d{1,2}\b|\b\d{1,2}x\d{2}\b|\bseason\b|\bepisode\b|\bseries\b/i.test(t);
+  const ym = t.match(/\(((?:19|20)\d{2})\)/) || t.match(/\b((?:19|20)\d{2})\b/);
+  const clean = x => x.replace(/\(\d+\/\d+\)/g, "").replace(/\((?:19|20)\d{2}\)/g, "")
+    .replace(/\b(movie\s*)?clip\b|\bscene\b|\bofficial\b|\b4k\b|\bhd\b|\buhd\b|\bhdr\b/gi, "").replace(/\(\s*\)/g, "")
+    .replace(/[“”"]/g, "").replace(/\s{2,}/g, " ").replace(/^[\s\-–|:]+|[\s\-–|:]+$/g, "").trim();
+  const split = x => x.split(/\s[-–]\s|\|/).map(clean).filter(Boolean);
+  const known = new Map(DECK.map(c => [c.title.toLowerCase().replace(/[’']/g, ""), c.title]));
+  const isKnown = p => known.get(p.toLowerCase().replace(/[’']/g, ""));
+  let parts = split(t).filter(p => !author || p.toLowerCase() !== author.toLowerCase());
+  const k = parts.find(isKnown);
+  let title = k ? isKnown(k) : "";
+  if (!title){                                  // "Title (4/10) Movie CLIP - Scene (1960)" or "Scene - Title (9/10) Movie CLIP (1982)"
+    const nm = t.match(/^(.*?)\s*\(\d+\/\d+\)/);
+    if (nm){ const p = split(nm[1]); title = p[p.length - 1] || ""; }
+  }
+  if (!title){                                  // "Title (1975) - Scene"
+    const yp = t.match(/^(.*?)\s*\((?:19|20)\d{2}\)/);
+    if (yp){ const p = split(yp[1]); title = p[p.length - 1] || ""; }
+  }
+  if (!title) title = parts.find(p => !/[“"]/.test(p)) || parts[0] || "";
+  return {title, year: ym ? +ym[1] : "", kind: tv ? "tv" : "movie"};
+}
+let linkTimer;
+$("#fLink").oninput = () => { clearTimeout(linkTimer); linkTimer = setTimeout(onLink, 400); };
+async function onLink(){
+  const p = parseLink($("#fLink").value);
+  const st = $("#addStatus");
+  if (!p){ st.textContent = $("#fLink").value.trim() ? "That doesn’t look like a YouTube video link." : ""; st.className = "status bad"; return; }
+  if (!editingId || p.start) $("#fStart").value = p.start;
+  showPreview(p.id, +$("#fStart").value);
+  const dup = DECK.find(c => c.yt === p.id && c.id !== editingId);
+  st.className = "status"; st.textContent = "Reading the video’s details…";
+  try {
+    const r = await fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + p.id));
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(), g = guessFromTitle(j.title, j.author_name);
+    const fill = (el, v) => { if (v !== "" && (!el.value || autoFilled[el.id])){ el.value = v; autoFilled[el.id] = true; } };
+    fill($("#fTitle"), g.title); fill($("#fYear"), g.year);
+    if (!editingId) $("#fKind").value = g.kind;
+    st.textContent = `Video: “${j.title}”.` + (dup ? ` This clip is already card ${dup.id}.` : " Check the title and year, then add the characters.");
+    st.className = dup ? "status bad" : "status ok";
+  } catch(_) {
+    st.textContent = "Couldn’t read this video’s details. It may be private or removed. Fill in the fields yourself.";
+    st.className = "status bad";
+  }
+}
+["fTitle","fYear"].forEach(id => $("#" + id).addEventListener("input", () => autoFilled[id] = false));
+function showPreview(id, start){
+  $("#pvWrap").hidden = false;
+  if (!ytReady) return;
+  if (!pv) pv = new YT.Player("pv", {videoId:id, playerVars:{start, playsinline:1, rel:0}});
+  else if (pv.cueVideoById) pv.cueVideoById({videoId:id, startSeconds:start});
+}
+$("#setStartBtn").onclick = () => { if (pv && pv.getCurrentTime) $("#fStart").value = Math.floor(pv.getCurrentTime()); };
+function resetForm(){
+  editingId = null; autoFilled = {};
+  ["fLink","fTitle","fYear","fChars"].forEach(id => $("#" + id).value = "");
+  $("#fStart").value = 0; $("#fLen").value = 40; $("#fKind").value = "movie";
+  $("#formTitle").textContent = "Add a clip"; $("#addBtn").textContent = "Add card"; $("#cancelEditBtn").hidden = true;
+  $("#pvWrap").hidden = true; if (pv && pv.stopVideo) pv.stopVideo();
+}
+function startEdit(m){
+  resetForm(); editingId = m.id;
+  $("#fLink").value = "https://www.youtube.com/watch?v=" + m.yt;
+  $("#fTitle").value = m.title; $("#fYear").value = m.year; $("#fKind").value = m.kind; $("#fChars").value = m.chars;
+  $("#fStart").value = m.start || 0; $("#fLen").value = m.len || 40;
+  $("#formTitle").textContent = "Edit card " + m.id; $("#addBtn").textContent = "Save changes"; $("#cancelEditBtn").hidden = false;
+  $("#addStatus").textContent = ""; showPreview(m.yt, m.start || 0);
+  $("#addPanel").scrollIntoView({behavior:"smooth"});
+}
+$("#cancelEditBtn").onclick = () => { resetForm(); $("#addStatus").textContent = ""; };
+$("#addBtn").onclick = () => {
+  const p = parseLink($("#fLink").value), st = $("#addStatus");
+  const title = $("#fTitle").value.trim(), year = +$("#fYear").value;
+  const err = !p ? "Paste a YouTube video link first." : !title ? "Fill in the title." : !(year >= 1900 && year <= 2100) ? "Fill in the year." : "";
+  if (err){ st.textContent = err; st.className = "status bad"; return; }
+  const data = {kind:$("#fKind").value, title, year, chars:$("#fChars").value.trim(), yt:p.id,
+    start: Math.max(0, +$("#fStart").value || 0), len: Math.max(5, +$("#fLen").value || 40)};
+  let msg;
+  if (editingId){ Object.assign(DECK.find(c => c.id === editingId), data); delete ckStatus[editingId]; msg = `Card ${editingId} updated.`; }
+  else { const id = pad(NEXT_ID++); DECK.push({id, ...data}); msg = `Added as card ${id}.`; }
+  changed(); resetForm();
+  st.textContent = msg + " Save to GitHub to put it on the site."; st.className = "status ok";
+};
+
+/* ---------- Save: GitHub or download ---------- */
+function ghFields(){ return {owner:$("#gOwner").value.trim(), repo:$("#gRepo").value.trim(), branch:$("#gBranch").value.trim() || "main", token:$("#gToken").value.trim()}; }
+(function initGh(){
+  const saved = JSON.parse(store.get("ghSettings") || "{}");
+  const m = location.hostname.match(/^([\w-]+)\.github\.io$/);
+  $("#gOwner").value = saved.owner || (m ? m[1] : "");
+  $("#gRepo").value = saved.repo || (m ? location.pathname.split("/").filter(Boolean)[0] || "" : "");
+  $("#gBranch").value = saved.branch || "main";
+  $("#gToken").value = saved.token || "";
+})();
+$("#saveSettingsBtn").onclick = () => { store.set("ghSettings", JSON.stringify(ghFields())); $("#saveStatus").textContent = "GitHub settings saved on this device."; $("#saveStatus").className = "status ok"; };
+function b64(str){ const bytes = new TextEncoder().encode(str); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); }
+$("#saveGhBtn").onclick = async () => {
+  const s = ghFields(), st = $("#saveStatus");
+  if (!s.owner || !s.repo || !s.token){ $("#ghPanel").open = true; st.textContent = "Fill in the GitHub settings below first."; st.className = "status bad"; return; }
+  st.textContent = "Saving to GitHub…"; st.className = "status";
+  const api = `https://api.github.com/repos/${encodeURIComponent(s.owner)}/${encodeURIComponent(s.repo)}/contents/deck.json`;
+  const h = {Authorization: "Bearer " + s.token, Accept: "application/vnd.github+json"};
+  try {
+    let sha;
+    const g = await fetch(`${api}?ref=${encodeURIComponent(s.branch)}&t=${Date.now()}`, {headers:h, cache:"no-store"});
+    if (g.ok) sha = (await g.json()).sha;
+    else if (g.status !== 404) throw g;
+    const body = {message:`Update deck: ${DECK.length} cards`, content:b64(deckJson()), branch:s.branch};
+    if (sha) body.sha = sha;
+    const p = await fetch(api, {method:"PUT", headers:{...h, "Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if (!p.ok) throw p;
+    dirty = false; store.del("deckDraft"); updateDirty();
+    st.textContent = "Saved. The site shows the changes in a minute or two."; st.className = "status ok";
+  } catch(r) {
+    const code = r && r.status;
+    st.textContent = code === 401 ? "GitHub refused the token. Check that it’s copied correctly and hasn’t expired."
+      : code === 403 ? "The token doesn’t have permission. It needs Contents: Read and write on this repository."
+      : code === 404 ? "Repository not found. Check the username and repository name, and that the token can access it."
+      : code === 409 || code === 422 ? "deck.json changed on GitHub at the same moment. Click Save again."
+      : "Couldn’t reach GitHub. Check the connection and try again.";
+    st.className = "status bad";
+  }
+};
+$("#downloadBtn").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([deckJson()], {type:"application/json"}));
+  a.download = "deck.json"; a.click(); URL.revokeObjectURL(a.href);
+  $("#saveStatus").textContent = "Downloaded. Upload deck.json to your repository to put it on the site, then discard the changes here."; $("#saveStatus").className = "status ok";
+};
+$("#discardBtn").onclick = async () => {
+  if (!confirm("Discard the changes made on this device?")) return;
+  store.del("deckDraft"); dirty = false; await loadDeck(); renderManage(); $("#saveStatus").textContent = "";
 };
 
 /* ---------- Printable cards ---------- */
 const baseInput = $("#base");
 baseInput.value = location.href.split("#")[0];
 $("#baseWarn").hidden = !isFile;
-let t; baseInput.oninput = () => { clearTimeout(t); t = setTimeout(renderSheets, 300); };
-
+let t;
+[baseInput, $("#pFrom"), $("#pTo")].forEach(el => el.oninput = () => { clearTimeout(t); t = setTimeout(renderSheets, 300); });
+function initRange(){
+  const nums = DECK.map(c => +c.id);
+  if (!$("#pFrom").value) $("#pFrom").value = Math.min(...nums, 1);
+  if (!$("#pTo").value) $("#pTo").value = Math.max(...nums, 1);
+}
 function renderSheets(){
   const wrap = $("#sheets"); wrap.innerHTML = "";
-  const base = baseInput.value.trim();
-  for (let p = 0; p < DECK.length; p += 12){
-    const chunk = DECK.slice(p, p+12);
+  const base = baseInput.value.trim(), from = +$("#pFrom").value || 0, to = +$("#pTo").value || Infinity;
+  const list = DECK.filter(c => +c.id >= from && +c.id <= to).sort((a,b) => +a.id - +b.id);
+  for (let p = 0; p < list.length; p += 12){
+    const chunk = list.slice(p, p+12);
     while (chunk.length % 3) chunk.push(null);
     const fronts = sheet(), backs = sheet();
     chunk.forEach(m => {
@@ -679,25 +671,25 @@ function renderSheets(){
       if (!m) return;
       const q = document.createElement("div"); q.className = "qr"; c.appendChild(q);
       new QRCode(q, {text: base + "#c" + m.id, width:256, height:256, correctLevel: QRCode.CorrectLevel.M});
-      c.insertAdjacentHTML("beforeend", `<div class="n">${m.id}</div>`);
+      c.insertAdjacentHTML("beforeend", `<div class="n">${esc(m.id)}</div>`);
     });
     for (let r = 0; r < chunk.length; r += 3){        // mirror each row so backs line up after a long-edge flip
       chunk.slice(r, r+3).reverse().forEach(m => {
         const c = cell(backs);
-        if (m) c.innerHTML = `<div class="y">${m.year}</div><div class="tt">${m.title}</div>`
-          + (m.kind === "tv" ? `<div class="tv">TV series</div>` : "")
-          + `<div class="ln">${m.chars}</div>`;
+        if (m) c.innerHTML = `<div class="y">${esc(m.year)}</div><div class="tt">${esc(m.title)}</div>`
+          + (m.kind === "tv" ? `<div class="tv">TV series</div>` : "") + `<div class="ln">${esc(m.chars)}</div>`;
       });
     }
     const n = p/12 + 1;
     wrap.insertAdjacentHTML("beforeend", `<p class="sheet-label">Page ${n}: fronts</p>`); wrap.appendChild(fronts);
     wrap.insertAdjacentHTML("beforeend", `<p class="sheet-label">Page ${n}: backs</p>`); wrap.appendChild(backs);
   }
+  if (!list.length) wrap.innerHTML = `<p class="hint">No cards in that range.</p>`;
 }
 function sheet(){ const s = document.createElement("div"); s.className = "sheet"; return s; }
 function cell(s){ const c = document.createElement("div"); c.className = "card"; s.appendChild(c); return c; }
 
-route();
+loadDeck().then(() => { updateDirty(); route(); });
 </script>
 </body>
 </html>
