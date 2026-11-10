@@ -51,10 +51,10 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
 
 /* Player */
 .screen{position:relative; aspect-ratio:16/9; background:#000; border-radius:14px; overflow:hidden; margin:1rem 0}
-.screen #yt, .screen iframe{position:absolute; inset:0; width:100%; height:100%; opacity:0; pointer-events:none}
-.screen.live iframe{opacity:1}
-.screen.sound iframe{opacity:0!important}
-.screen.tap iframe{opacity:1; pointer-events:auto}
+.screen iframe{position:absolute; inset:0; width:100%; height:100%; opacity:0; pointer-events:none}
+.screen.live iframe, .screen.tap iframe{opacity:1}
+.screen.tap iframe{pointer-events:auto}
+.screen.sound:not(.tap) iframe{opacity:0}
 .screen .mask-top{position:absolute; left:0; right:0; top:0; height:17%; background:#000; z-index:2; pointer-events:none}
 .screen .shield{position:absolute; inset:0; z-index:3}
 .screen.tap .shield{display:none}
