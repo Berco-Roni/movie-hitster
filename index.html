@@ -54,13 +54,12 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
 .screen iframe{position:absolute; inset:0; width:100%; height:100%; opacity:0; pointer-events:none}
 .screen.live iframe, .screen.tap iframe{opacity:1}
 .screen.tap iframe{pointer-events:auto}
-.screen.sound:not(.tap) iframe{opacity:0}
 .screen .mask-top{position:absolute; left:0; right:0; top:0; height:17%; background:#000; z-index:2; pointer-events:none}
 .screen .shield{position:absolute; inset:0; z-index:3}
 .screen.tap .shield{display:none}
 .idle{position:absolute; inset:0; z-index:4; display:grid; place-content:center; text-align:center; gap:.6rem; color:#F7DED7; padding:1rem;
   background:radial-gradient(ellipse at center,var(--velvet-deep),#000 75%)}
-.screen.live:not(.sound) .idle, .screen.tap .idle{display:none}
+.screen.live .idle, .screen.tap .idle{display:none}
 .idle .num{font-family:var(--display); font-size:clamp(2.2rem,8vw,4.2rem); line-height:1}
 .idle .bonus{color:var(--bulb); font-weight:700; font-size:1.2rem}
 .idle .msg{max-width:38ch; margin:0 auto; color:#E8C3BD}
@@ -177,6 +176,7 @@ html.cinema-on, html.cinema-on body{overflow:hidden}
         <a class="btn ghost" href="#cards">Print the cards</a>
       </div>
       <p class="hint" id="deckInfo"></p>
+      <p class="hint">Version 4 · 10 Nov 2026</p>
     </div>
     <h2>How to play</h2>
     <ol class="rules">
@@ -187,7 +187,6 @@ html.cinema-on, html.cinema-on body{overflow:hidden}
       <li>Name the title and the characters in the scene to win a token. Spend 3 tokens to buy a free card.</li>
       <li>The first player with 10 cards wins.</li>
     </ol>
-    <p>For a harder game, turn on <strong>Sound only</strong>: you hear the scene but don’t see it.</p>
   </section>
 
   <section id="play" class="view">
@@ -211,7 +210,6 @@ html.cinema-on, html.cinema-on body{overflow:hidden}
       <button class="btn" id="playBtn">Play scene</button>
       <button class="btn ghost" id="replayBtn">Replay</button>
       <button class="btn ghost" id="revealBtn">Reveal answer</button>
-      <label class="toggle"><input type="checkbox" id="soundOnly"> Sound only</label>
     </div>
     <div id="answer"></div>
     <p class="row" style="margin-top:1.5rem"><button class="btn ghost" data-random>Draw another card</button></p>
@@ -219,7 +217,7 @@ html.cinema-on, html.cinema-on body{overflow:hidden}
 
   <section id="manage" class="view">
     <h2>Manage deck</h2>
-    <p class="hint">This page shows the answers, so keep it away from the players.</p>
+    <p class="hint">This page shows the answers, so keep it away from the players. Version 4 · 10 Nov 2026.</p>
 
     <div class="dirty" id="dirtyBar">
       <span id="dirtyText">You have changes that aren’t on the site yet.</span>
@@ -463,7 +461,6 @@ function onState(e){
   if (s === YT.PlayerState.PLAYING && prevState !== YT.PlayerState.PLAYING){ scr().classList.add("fresh"); clearTimeout(freshTimer); freshTimer = setTimeout(() => scr().classList.remove("fresh"), 3500); }
   scr().classList.toggle("live", live);
   $("#playBtn").textContent = ended ? "Play again" : "Play scene";
-  if (live && $("#soundOnly").checked) idle("Listen closely…");
   if (s === YT.PlayerState.PAUSED && !ended) idle(scr().classList.contains("cinema") ? "Paused. Tap to continue." : "Paused.");
   if (s !== YT.PlayerState.BUFFERING) prevState = s;
   if (s === YT.PlayerState.ENDED) finish();
@@ -508,16 +505,15 @@ function stop(){ clearTimeout(tapTimer); clearTimeout(autoTimer); clearInterval(
 
 $("#idle").onclick = () => {
   if (!current || !player) return;
-  if (isLive()) player.pauseVideo();               // sound-only mode shows this screen while playing
-  else if (/isn’t in the deck|didn’t|won’t|can’t|removed|broken/.test($("#idleMsg").textContent)) return;
+  if (isLive()) return;
+  if (/isn’t in the deck|didn’t|won’t|can’t|removed|broken/.test($("#idleMsg").textContent)) return;
   else startScene(false);
 };
 $("#shield").onclick = () => { if (isLive() && player) player.pauseVideo(); };
 $("#exitBtn").onclick = e => { e.stopPropagation(); stop(); exitCinema(); if (!ended) idle("Paused."); };
 $("#playBtn").onclick = () => startScene(false);
 $("#replayBtn").onclick = () => startScene(true);
-$("#soundOnly").onchange = e => { scr().classList.toggle("sound", e.target.checked); store.set("soundOnly", e.target.checked ? "1" : ""); };
-if (store.get("soundOnly")){ $("#soundOnly").checked = true; scr().classList.add("sound"); }
+store.del("soundOnly");   // clear the old setting
 $("#revealBtn").onclick = () => {
   const m = current; if (!m) return;
   $("#answer").innerHTML =
