@@ -532,26 +532,6 @@
    "len": 40
   },
   {
-   "id": "054",
-   "kind": "movie",
-   "title": "The Hunger Games",
-   "year": 2012,
-   "chars": "Katniss Everdeen, Effie Trinket",
-   "yt": "ZQJweTp7LZo",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "055",
-   "kind": "movie",
-   "title": "Monsters, Inc.",
-   "year": 2001,
-   "chars": "Sulley, Mike Wazowski, Boo",
-   "yt": "QpaOtyjWkBo",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "056",
    "kind": "tv",
    "title": "The Bear",
@@ -1092,16 +1072,6 @@
    "len": 40
   },
   {
-   "id": "110",
-   "kind": "movie",
-   "title": "Mad Max: Fury Road",
-   "year": 2015,
-   "chars": "Max Rockatansky, Furiosa",
-   "yt": "k4Lpr1sqKbQ",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "111",
    "kind": "movie",
    "title": "Home Alone",
@@ -1158,16 +1128,6 @@
    "year": 1993,
    "chars": "Phil Connors",
    "yt": "1jJxzhFg86M",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "117",
-   "kind": "movie",
-   "title": "Notting Hill",
-   "year": 1999,
-   "chars": "Anna Scott, William Thacker",
-   "yt": "RESwG23_YGw",
    "start": 2,
    "len": 40
   },
@@ -1442,16 +1402,6 @@
    "len": 40
   },
   {
-   "id": "145",
-   "kind": "movie",
-   "title": "When Harry Met Sally",
-   "year": 1989,
-   "chars": "Harry, Sally",
-   "yt": "plWM8QWgfho",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "146",
    "kind": "movie",
    "title": "Mamma Mia!",
@@ -1598,16 +1548,6 @@
    "year": 2022,
    "chars": "Evelyn Wang, Waymond Wang",
    "yt": "YEg4gylAIk8",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "161",
-   "kind": "movie",
-   "title": "Psycho",
-   "year": 1960,
-   "chars": "Norman Bates, Marion Crane",
-   "yt": "ghew-s2zPjE",
    "start": 2,
    "len": 40
   },
@@ -2412,16 +2352,6 @@
    "len": 40
   },
   {
-   "id": "242",
-   "kind": "movie",
-   "title": "Black Panther",
-   "year": 2018,
-   "chars": "T’Challa, Killmonger",
-   "yt": "Gtepp-acYOY",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "243",
    "kind": "tv",
    "title": "Friends",
@@ -2438,16 +2368,6 @@
    "year": 2010,
    "chars": "Olive Penderghast",
    "yt": "ylvh800i85I",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "245",
-   "kind": "movie",
-   "title": "Mary Poppins",
-   "year": 1964,
-   "chars": "Mary Poppins, Bert, Jane, Michael",
-   "yt": "WKdJ0wPZpBQ",
    "start": 2,
    "len": 40
   },
@@ -2682,16 +2602,6 @@
    "len": 40
   },
   {
-   "id": "269",
-   "kind": "tv",
-   "title": "Game of Thrones",
-   "year": 2011,
-   "chars": "Daenerys Targaryen",
-   "yt": "4fAgcUZZEN0",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "270",
    "kind": "movie",
    "title": "Harry Potter and the Chamber of Secrets",
@@ -2778,16 +2688,6 @@
    "year": 2017,
    "chars": "Eleanor Shellstrop, Michael",
    "yt": "SVG1YGdoCWo",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "279",
-   "kind": "movie",
-   "title": "Django Unchained",
-   "year": 2012,
-   "chars": "Django, Dr. King Schultz",
-   "yt": "X8guAnshoMk",
    "start": 2,
    "len": 40
   },
