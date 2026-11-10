@@ -92,16 +92,6 @@
    "len": 40
   },
   {
-   "id": "010",
-   "kind": "tv",
-   "title": "The O.C.",
-   "year": 2003,
-   "chars": "Ryan Atwood, Seth Cohen, Luke Ward",
-   "yt": "6lgK4ldR2Xo",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "011",
    "kind": "movie",
    "title": "Star Wars: The Force Awakens",
@@ -252,16 +242,6 @@
    "len": 40
   },
   {
-   "id": "026",
-   "kind": "movie",
-   "title": "Elf",
-   "year": 2003,
-   "chars": "Buddy",
-   "yt": "HebbNljYRzE",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "027",
    "kind": "tv",
    "title": "How I Met Your Mother",
@@ -288,16 +268,6 @@
    "year": 2024,
    "chars": "Elphaba, Glinda",
    "yt": "MOuiaMyPE80",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "030",
-   "kind": "movie",
-   "title": "The Goonies",
-   "year": 1985,
-   "chars": "Chunk, Mikey, Data",
-   "yt": "kr_z37TgQO4",
    "start": 2,
    "len": 40
   },
@@ -336,7 +306,7 @@
    "kind": "tv",
    "title": "Seinfeld",
    "year": 1995,
-   "chars": "Jerry, Elaine, the Soup Nazi",
+   "chars": "Jerry, Elaine",
    "yt": "RqlQYBcsq54",
    "start": 2,
    "len": 40
