@@ -140,6 +140,25 @@ h2{font-family:var(--display); font-weight:400; font-size:1.8rem; margin:2.5rem 
 details summary{cursor:pointer; font-weight:700}
 .range{display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; margin:.5rem 0 1rem}
 .range .field{width:8rem}
+
+/* YouTube shows "More videos" and its logo for a few seconds whenever playback starts; cover that strip until they fade */
+.screen .mask-bottom{display:none; position:absolute; left:0; right:0; bottom:0; height:22%; background:#000; z-index:2; pointer-events:none}
+.screen.fresh .mask-bottom{display:block}
+/* Full-screen scene */
+.screen .frame{position:relative; width:100%; height:100%}
+.screen.cinema{position:fixed; inset:0; z-index:1000; margin:0; border-radius:0; aspect-ratio:auto}
+.screen.cinema .frame{position:absolute; left:50%; top:50%; height:auto; aspect-ratio:16/9;
+  width:min(100vw, calc(100vh * 16 / 9)); width:min(100vw, calc(100dvh * 16 / 9)); transform:translate(-50%,-50%)}
+@media (orientation:portrait){        /* phone held upright: turn the picture so the scene fills the screen sideways */
+  .screen.cinema .frame{width:min(100vh, calc(100vw * 16 / 9)); width:min(100dvh, calc(100vw * 16 / 9)); transform:translate(-50%,-50%) rotate(90deg)}
+}
+html.cinema-on, html.cinema-on body{overflow:hidden}
+.idle{cursor:pointer}
+.bigplay{display:none; width:4.5rem; height:4.5rem; border-radius:50%; background:var(--bulb); color:#2B1216; font-size:2rem; line-height:4.5rem; margin:.25rem auto; padding-left:.3rem}
+.screen.needtap .bigplay{display:block}
+.exit{display:none; position:absolute; top:.6rem; right:.6rem; z-index:6; width:2.75rem; height:2.75rem; border-radius:50%; border:0;
+  background:rgba(0,0,0,.6); color:#fff; font-size:1.2rem; cursor:pointer}
+.screen.cinema .exit{display:block}
 </style>
 </head>
 <body>
@@ -173,13 +192,18 @@ details summary{cursor:pointer; font-weight:700}
 
   <section id="play" class="view">
     <div class="screen" id="screen">
-      <div id="yt"></div>
-      <div class="mask-top"></div>
-      <div class="shield"></div>
-      <div class="idle">
-        <div class="num" id="cardNum">Card</div>
-        <div class="bonus" id="bonusLine"></div>
-        <div class="msg" id="idleMsg"></div>
+      <div class="frame">
+        <div id="yt"></div>
+        <div class="mask-top"></div>
+        <div class="mask-bottom"></div>
+        <div class="shield" id="shield"></div>
+        <div class="idle" id="idle">
+          <div class="num" id="cardNum">Card</div>
+          <div class="bonus" id="bonusLine"></div>
+          <div class="bigplay" aria-hidden="true">▶</div>
+          <div class="msg" id="idleMsg"></div>
+        </div>
+        <button class="exit" id="exitBtn" aria-label="Leave full screen">✕</button>
       </div>
     </div>
     <p class="tap-hint">Tap the video to start it.</p>
@@ -317,17 +341,18 @@ function route(){
   const h = location.hash.slice(1);
   document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
   const card = DECK.find(m => "c" + m.id === h);
-  if (h === "cards"){ $("#cards").classList.add("on"); initRange(); renderSheets(); stop(); }
-  else if (h === "manage" || h === "check"){ $("#manage").classList.add("on"); renderManage(); stop(); }
+  if (h === "cards"){ $("#cards").classList.add("on"); initRange(); renderSheets(); stop(); exitCinema(); }
+  else if (h === "manage" || h === "check"){ $("#manage").classList.add("on"); renderManage(); stop(); exitCinema(); }
   else if (card){ $("#play").classList.add("on"); openCard(card); }
   else if (/^c\d+$/.test(h)){ $("#play").classList.add("on"); missingCard(h.slice(1)); }
-  else { $("#home").classList.add("on"); stop(); }
+  else { $("#home").classList.add("on"); stop(); exitCinema(); }
   scrollTo(0,0);
 }
 addEventListener("hashchange", route);
 document.addEventListener("click", e => {
   if (!e.target.closest("[data-random]") || !DECK.length) return;
   const pool = DECK.length > 1 ? DECK.filter(m => m !== current) : DECK;
+  enterCinema(true);
   location.hash = "c" + pool[Math.floor(Math.random()*pool.length)].id;
 });
 
@@ -338,19 +363,56 @@ tag.src = "https://www.youtube.com/iframe_api";
 tag.onerror = () => apiFail();
 document.head.appendChild(tag);
 setTimeout(() => { if (!ytReady) apiFail(); }, 8000);
-window.onYouTubeIframeAPIReady = () => { ytReady = true; ytFailed = false; if (pending) load(pending); };
+window.onYouTubeIframeAPIReady = () => { ytReady = true; ytFailed = false; if (pending) load(pending.m, pending.auto); };
 function apiFail(){
   ytFailed = true;
-  if (current) idle(isFile
+  if (current){ exitCinema(); idle(isFile
     ? "YouTube won’t play on a page opened from a file. Open the page from its web address."
-    : "YouTube didn’t load on this page. Check the connection and reload.", true);
+    : "YouTube didn’t load on this page. Check the connection and reload.", true); }
 }
 
+/* ---------- Full screen ---------- */
+const scr = () => $("#screen");
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+let realFs = false, leavingFs = false;
+function enterCinema(withGesture){
+  scr().classList.add("cinema");
+  document.documentElement.classList.add("cinema-on");
+  if (!withGesture || fsEl()) return;
+  const el = scr(), req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;                        // iPhone: no full-screen API, the page itself fills the screen instead
+  try {
+    Promise.resolve(req.call(el)).then(() => {
+      realFs = true;
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {});
+    }).catch(() => {});
+  } catch(_) {}
+}
+function exitCinema(){
+  scr().classList.remove("cinema", "needtap");
+  document.documentElement.classList.remove("cinema-on");
+  if (fsEl()){
+    leavingFs = true;
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    try { Promise.resolve(ex.call(document)).catch(() => {}).finally(() => { leavingFs = false; }); } catch(_) { leavingFs = false; }
+  }
+  try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch(_) {}
+  realFs = false;
+}
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev => document.addEventListener(ev, () => {
+  if (!fsEl() && realFs && !leavingFs){   // the player left full screen with the back button or Esc
+    realFs = false;
+    if (player && player.pauseVideo) player.pauseVideo();
+    exitCinema();
+  }
+}));
+
 /* ---------- Player ---------- */
-let current = null, player = null, ended = false, watchdog = null, tapTimer = null;
+let current = null, player = null, ended = false, watchdog = null, tapTimer = null, autoTimer = null, freshTimer = null;
+const isLive = () => scr().classList.contains("live");
 function missingCard(id){
-  current = null; stop();
-  $("#screen").classList.remove("live","tap");
+  current = null; stop(); exitCinema();
+  scr().classList.remove("live","tap");
   $("#cardNum").textContent = "Card " + id;
   $("#bonusLine").textContent = "";
   $("#answer").innerHTML = "";
@@ -359,49 +421,62 @@ function missingCard(id){
 }
 function openCard(m){
   current = m; ended = false;
+  clearTimeout(autoTimer); clearTimeout(tapTimer); clearInterval(watchdog);
   $("#playControls").hidden = false;
   $("#answer").innerHTML = "";
   $("#cardNum").textContent = "Card " + m.id;
   $("#bonusLine").textContent = "Bonus: name the title and the characters";
-  $("#playBtn").textContent = "Play scene";
-  $("#screen").classList.remove("live","tap");
+  $("#playBtn").textContent = "Play scene"; $("#replayBtn").hidden = false;
+  scr().classList.remove("live","tap","needtap");
   if (ytFailed) return apiFail();
-  idle("Tap Play when everyone’s watching.");
-  if (ytReady) load(m); else pending = m;
+  enterCinema(false);
+  idle("Loading the scene…");
+  if (ytReady) load(m, true); else pending = {m, auto:true};
+  // Browsers only allow sound once someone has tapped the page. If the scene hasn't started by itself, ask for one tap.
+  autoTimer = setTimeout(() => { if (current === m && !isLive() && !ended) needTap(); }, 1800);
 }
-function load(m){
+function needTap(){ scr().classList.add("needtap"); idle("Tap to start the scene"); }
+function load(m, auto){
   pending = null;
   const st = m.start || 0, en = st + (m.len || 40);
   if (!player){
     player = new YT.Player("yt", {videoId:m.yt,
-      playerVars:{start:st, end:en, controls:0, disablekb:1, fs:0, rel:0, iv_load_policy:3, playsinline:1},
-      events:{onStateChange:onState, onError:onErr}});
-  } else player.cueVideoById({videoId:m.yt, startSeconds:st, endSeconds:en});
+      playerVars:{autoplay: auto ? 1 : 0, start:st, end:en, controls:0, disablekb:1, fs:0, rel:0, iv_load_policy:3, playsinline:1},
+      events:{onStateChange:onState, onError:onErr, onReady: e => { if (auto) e.target.playVideo(); }}});
+  } else if (auto) player.loadVideoById({videoId:m.yt, startSeconds:st, endSeconds:en});
+  else player.cueVideoById({videoId:m.yt, startSeconds:st, endSeconds:en});
+  if (auto) startWatchdog();
 }
 const ERRORS = {2:"The clip link is broken.", 5:"This browser can’t play the clip.", 100:"The clip was removed from YouTube.",
   101:"The clip’s owner doesn’t allow it to play inside other sites.", 150:"The clip’s owner doesn’t allow it to play inside other sites.",
   153:"YouTube needs this page to be opened from a web address, not a file."};
 function onErr(e){
-  clearTimeout(tapTimer); clearInterval(watchdog);
-  $("#screen").classList.remove("live","tap");
+  clearTimeout(tapTimer); clearTimeout(autoTimer); clearInterval(watchdog);
+  scr().classList.remove("live","tap"); exitCinema();
   const why = ERRORS[e.data] || "The clip didn’t play (error " + e.data + ").";
   idle(e.data === 153 ? why : why + " Replace it on the Manage deck page.", true);
 }
+let prevState = -1;
 function onState(e){
   const s = e.data, live = s === YT.PlayerState.PLAYING || s === YT.PlayerState.BUFFERING;
-  if (live){ clearTimeout(tapTimer); $("#screen").classList.remove("tap"); }
-  $("#screen").classList.toggle("live", live);
-  $("#playBtn").textContent = live ? "Pause" : (ended ? "Play again" : "Play scene");
+  if (live){ clearTimeout(tapTimer); scr().classList.remove("tap", "needtap"); }
+  if (s === YT.PlayerState.PLAYING && prevState !== YT.PlayerState.PLAYING){ scr().classList.add("fresh"); clearTimeout(freshTimer); freshTimer = setTimeout(() => scr().classList.remove("fresh"), 3500); }
+  scr().classList.toggle("live", live);
+  $("#playBtn").textContent = ended ? "Play again" : "Play scene";
   if (live && $("#soundOnly").checked) idle("Listen closely…");
-  if (s === YT.PlayerState.PAUSED) idle("Paused.");
+  if (s === YT.PlayerState.PAUSED && !ended) idle(scr().classList.contains("cinema") ? "Paused. Tap to continue." : "Paused.");
+  if (s !== YT.PlayerState.BUFFERING) prevState = s;
   if (s === YT.PlayerState.ENDED) finish();
 }
 function finish(){
-  ended = true; clearInterval(watchdog);
+  if (ended) return;
+  ended = true; clearInterval(watchdog); clearTimeout(autoTimer);
   if (player && player.pauseVideo) player.pauseVideo();
-  $("#screen").classList.remove("live","tap");
-  $("#playBtn").textContent = "Play again";
+  scr().classList.remove("live","tap");
+  exitCinema();
+  $("#playBtn").textContent = "Play again"; $("#replayBtn").hidden = true;
   idle("Scene over. Place your card, then reveal.");
+  scrollTo(0, 0);
 }
 function idle(msg, withLink){
   const el = $("#idleMsg"); el.innerHTML = ""; el.append(msg);
@@ -411,28 +486,38 @@ function idle(msg, withLink){
     el.append(document.createElement("br"), a);
   }
 }
+function startWatchdog(){
+  clearInterval(watchdog);
+  watchdog = setInterval(() => {
+    if (current && player && player.getCurrentTime && isLive() && player.getCurrentTime() >= (current.start || 0) + (current.len || 40)) finish();
+  }, 500);
+}
 function play(fromStart){
   if (ytFailed) return apiFail();
   if (!player || !player.playVideo || !current) return;
-  const st = current.start || 0, len = current.len || 40;
-  if (fromStart || ended){ player.seekTo(st, true); ended = false; }
+  if (fromStart || ended){ player.seekTo(current.start || 0, true); ended = false; }
   player.playVideo();
   clearTimeout(tapTimer);
   tapTimer = setTimeout(() => {   // some phones only start a video the user taps directly
-    const s = player.getPlayerState && player.getPlayerState();
-    if (s !== YT.PlayerState.PLAYING && s !== YT.PlayerState.BUFFERING) $("#screen").classList.add("tap");
+    if (!isLive()){ scr().classList.remove("needtap"); scr().classList.add("tap"); }
   }, 2500);
-  clearInterval(watchdog);
-  watchdog = setInterval(() => { if (player.getCurrentTime && player.getCurrentTime() >= st + len) finish(); }, 500);
+  startWatchdog();
 }
-function stop(){ clearTimeout(tapTimer); clearInterval(watchdog); if (player && player.pauseVideo) player.pauseVideo(); }
-$("#playBtn").onclick = () => {
-  if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-  else play(false);
+function startScene(fromStart){ enterCinema(true); play(fromStart); }   // always called from a tap, so full screen is allowed
+function stop(){ clearTimeout(tapTimer); clearTimeout(autoTimer); clearInterval(watchdog); if (player && player.pauseVideo) player.pauseVideo(); }
+
+$("#idle").onclick = () => {
+  if (!current || !player) return;
+  if (isLive()) player.pauseVideo();               // sound-only mode shows this screen while playing
+  else if (/isn’t in the deck|didn’t|won’t|can’t|removed|broken/.test($("#idleMsg").textContent)) return;
+  else startScene(false);
 };
-$("#replayBtn").onclick = () => play(true);
-$("#soundOnly").onchange = e => { $("#screen").classList.toggle("sound", e.target.checked); store.set("soundOnly", e.target.checked ? "1" : ""); };
-if (store.get("soundOnly")){ $("#soundOnly").checked = true; $("#screen").classList.add("sound"); }
+$("#shield").onclick = () => { if (isLive() && player) player.pauseVideo(); };
+$("#exitBtn").onclick = e => { e.stopPropagation(); stop(); exitCinema(); if (!ended) idle("Paused."); };
+$("#playBtn").onclick = () => startScene(false);
+$("#replayBtn").onclick = () => startScene(true);
+$("#soundOnly").onchange = e => { scr().classList.toggle("sound", e.target.checked); store.set("soundOnly", e.target.checked ? "1" : ""); };
+if (store.get("soundOnly")){ $("#soundOnly").checked = true; scr().classList.add("sound"); }
 $("#revealBtn").onclick = () => {
   const m = current; if (!m) return;
   $("#answer").innerHTML =
