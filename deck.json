@@ -22,16 +22,6 @@
    "len": 40
   },
   {
-   "id": "003",
-   "kind": "movie",
-   "title": "Barbie",
-   "year": 2023,
-   "chars": "Barbie, Ken",
-   "yt": "ucglA9Vv_Ys",
-   "start": 2,
-   "len": 40
-  },
-  {
    "id": "004",
    "kind": "movie",
    "title": "The Hangover",
@@ -1428,16 +1418,6 @@
    "year": 2016,
    "chars": "Joyce Byers, Will",
    "yt": "jIQ9z2bxXyg",
-   "start": 2,
-   "len": 40
-  },
-  {
-   "id": "152",
-   "kind": "tv",
-   "title": "Avatar: The Last Airbender",
-   "year": 2006,
-   "chars": "Uncle Iroh",
-   "yt": "2SCGPDQNfkg",
    "start": 2,
    "len": 40
   },
